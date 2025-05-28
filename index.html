@@ -23,7 +23,7 @@
 </head>
 <body>
     <script>
-        // Game state
+        // Game state with save/load functionality
         const gameState = {
             resources: {
                 gold: 50,
@@ -35,11 +35,108 @@
                 unlocked: i < 2,
                 building: null,
                 harvestReady: false,
-                nextHarvest: 0
+                nextHarvest: 0,
+                // Future upgrade system
+                level: 1,
+                productionSpeed: 1.0,
+                harvestMultiplier: 1.0
             })),
             nextPlotCost: 100,
             selectedPlot: -1,
-            showBuildMenu: false
+            showBuildMenu: false,
+            lastSaved: Date.now(),
+            totalPlayTime: 0
+        };
+
+        // Save/Load System
+        const SaveSystem = {
+            save() {
+                try {
+                    const saveData = {
+                        ...gameState,
+                        version: "1.0",
+                        savedAt: Date.now()
+                    };
+                    localStorage.setItem('medievalKingdomBuilder', JSON.stringify(saveData));
+                    console.log('Game saved successfully');
+                    return true;
+                } catch (error) {
+                    console.error('Failed to save game:', error);
+                    return false;
+                }
+            },
+
+            load() {
+                try {
+                    const savedData = localStorage.getItem('medievalKingdomBuilder');
+                    if (!savedData) return false;
+
+                    const data = JSON.parse(savedData);
+                    
+                    // Version compatibility check
+                    if (data.version !== "1.0") {
+                        console.warn('Save version mismatch, starting fresh');
+                        return false;
+                    }
+
+                    // Calculate offline time and income
+                    const offlineTime = Date.now() - data.savedAt;
+                    console.log(`Offline for ${Math.floor(offlineTime / 1000)} seconds`);
+
+                    // Restore game state
+                    Object.assign(gameState, data);
+                    
+                    // Process offline progress
+                    this.processOfflineProgress(offlineTime);
+                    
+                    return true;
+                } catch (error) {
+                    console.error('Failed to load game:', error);
+                    return false;
+                }
+            },
+
+            processOfflineProgress(offlineTime) {
+                if (offlineTime < 5000) return; // Skip if less than 5 seconds offline
+
+                let offlineIncome = { gold: 0, food: 0, wood: 0, population: 0 };
+                
+                gameState.plots.forEach(plot => {
+                    if (plot.building && plot.unlocked) {
+                        const buildingDef = buildingTypes[plot.building];
+                        const harvestsCompleted = Math.floor(offlineTime / buildingDef.harvestTime);
+                        
+                        if (harvestsCompleted > 0) {
+                            Object.keys(buildingDef.produces).forEach(resource => {
+                                const amount = buildingDef.produces[resource] * harvestsCompleted;
+                                offlineIncome[resource] += amount;
+                                gameState.resources[resource] += amount;
+                            });
+                        }
+
+                        // Set next harvest time
+                        const timeInCurrentCycle = offlineTime % buildingDef.harvestTime;
+                        plot.nextHarvest = Date.now() + (buildingDef.harvestTime - timeInCurrentCycle);
+                        plot.harvestReady = timeInCurrentCycle >= buildingDef.harvestTime;
+                    }
+                });
+
+                // Show offline income popup if significant
+                const totalOfflineGold = offlineIncome.gold;
+                if (totalOfflineGold > 0) {
+                    console.log('Offline income:', offlineIncome);
+                    // We'll add a visual popup later
+                }
+            },
+
+            autoSave() {
+                this.save();
+            },
+
+            clearSave() {
+                localStorage.removeItem('medievalKingdomBuilder');
+                console.log('Save data cleared');
+            }
         };
 
         // Building definitions
@@ -69,16 +166,29 @@
             }
 
             preload() {
-                // Create simple geometric shapes for buildings
-                this.load.image('pixel', 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==');
+                // We'll create textures in the create method instead
             }
 
             create() {
                 this.cameras.main.setBackgroundColor('#4a6741');
                 
+                // Create textures using graphics
+                this.createTextures();
+                
+                // Load save data
+                SaveSystem.load();
+                
                 this.createGrid();
                 this.createUI();
                 this.setupInput();
+                
+                // Auto-save every 30 seconds
+                this.time.addEvent({
+                    delay: 30000,
+                    callback: SaveSystem.autoSave,
+                    callbackScope: SaveSystem,
+                    loop: true
+                });
                 
                 // Start game loop
                 this.time.addEvent({
@@ -87,6 +197,15 @@
                     callbackScope: this,
                     loop: true
                 });
+            }
+
+            createTextures() {
+                // Create a 1x1 white pixel texture
+                const graphics = this.add.graphics();
+                graphics.fillStyle(0xffffff);
+                graphics.fillRect(0, 0, 1, 1);
+                graphics.generateTexture('pixel', 1, 1);
+                graphics.destroy();
             }
 
             createGrid() {
@@ -138,7 +257,9 @@
                     base: base,
                     building: buildingSprite,
                     plotText: plotText,
-                    harvestIndicator: null
+                    harvestIndicator: null,
+                    progressBar: null,
+                    progressBg: null
                 };
 
                 // Click handler
@@ -351,8 +472,12 @@
                 if (this.buildMenu) {
                     this.buildMenu.background.destroy();
                     this.buildMenu.title.destroy();
-                    this.buildMenu.buttons.forEach(btn => {
-                        btn.forEach(element => element.destroy());
+                    this.buildMenu.buttons.forEach(btnArray => {
+                        if (Array.isArray(btnArray)) {
+                            btnArray.forEach(element => element.destroy());
+                        } else {
+                            btnArray.destroy();
+                        }
                     });
                     this.buildMenu = null;
                 }
@@ -422,41 +547,93 @@
                 
                 const buildingDef = buildingTypes[plot.building];
                 
-                // Add resources
+                // Add resources (with future upgrade multipliers)
                 Object.keys(buildingDef.produces).forEach(resource => {
-                    gameState.resources[resource] += buildingDef.produces[resource];
+                    const baseAmount = buildingDef.produces[resource];
+                    const finalAmount = Math.floor(baseAmount * plot.harvestMultiplier);
+                    gameState.resources[resource] += finalAmount;
                 });
                 
-                // Reset harvest timer
-                plot.nextHarvest = Date.now() + buildingDef.harvestTime;
+                // Reset harvest timer (with future upgrade speed multipliers)
+                const harvestTime = Math.floor(buildingDef.harvestTime / plot.productionSpeed);
+                plot.nextHarvest = Date.now() + harvestTime;
                 plot.harvestReady = false;
                 
-                // Remove harvest indicator
+                // Remove harvest indicator and progress bar
                 const gridSprite = this.gridSprites[plotIndex];
                 if (gridSprite.harvestIndicator) {
                     gridSprite.harvestIndicator.destroy();
                     gridSprite.harvestIndicator = null;
                 }
+                if (gridSprite.progressBar) {
+                    gridSprite.progressBar.destroy();
+                    gridSprite.progressBg.destroy();
+                    gridSprite.progressBar = null;
+                    gridSprite.progressBg = null;
+                }
                 
                 this.updateUI();
+                SaveSystem.autoSave(); // Save after harvest
             }
 
             updateBuildings() {
                 const currentTime = Date.now();
                 
                 gameState.plots.forEach((plot, index) => {
-                    if (plot.building && currentTime >= plot.nextHarvest && !plot.harvestReady) {
-                        plot.harvestReady = true;
+                    const gridSprite = this.gridSprites[index];
+                    
+                    if (plot.building && plot.unlocked) {
+                        const buildingDef = buildingTypes[plot.building];
+                        const timeRemaining = plot.nextHarvest - currentTime;
                         
-                        // Show harvest indicator
-                        const gridSprite = this.gridSprites[index];
-                        if (!gridSprite.harvestIndicator) {
-                            gridSprite.harvestIndicator = this.add.circle(
-                                gridSprite.base.x, 
-                                gridSprite.base.y, 
-                                35, 
-                                0xFFFF00, 
-                                0.3
+                        if (timeRemaining <= 0 && !plot.harvestReady) {
+                            // Ready to harvest
+                            plot.harvestReady = true;
+                            
+                            // Show harvest indicator
+                            if (!gridSprite.harvestIndicator) {
+                                gridSprite.harvestIndicator = this.add.circle(
+                                    gridSprite.base.x, 
+                                    gridSprite.base.y, 
+                                    35, 
+                                    0xFFFF00, 
+                                    0.3
+                                );
+                            }
+                            
+                            // Hide progress bar
+                            if (gridSprite.progressBar) {
+                                gridSprite.progressBar.destroy();
+                                gridSprite.progressBg.destroy();
+                                gridSprite.progressBar = null;
+                                gridSprite.progressBg = null;
+                            }
+                        } else if (timeRemaining > 0 && !plot.harvestReady) {
+                            // Show progress bar
+                            const progress = 1 - (timeRemaining / buildingDef.harvestTime);
+                            
+                            if (!gridSprite.progressBg) {
+                                // Create progress bar background
+                                gridSprite.progressBg = this.add.rectangle(
+                                    gridSprite.base.x, 
+                                    gridSprite.base.y + 35, 
+                                    50, 6, 
+                                    0x333333
+                                );
+                                gridSprite.progressBg.setStrokeStyle(1, 0x000000);
+                            }
+                            
+                            if (gridSprite.progressBar) {
+                                gridSprite.progressBar.destroy();
+                            }
+                            
+                            // Create progress bar fill
+                            const barWidth = Math.max(2, 48 * progress);
+                            gridSprite.progressBar = this.add.rectangle(
+                                gridSprite.base.x - 24 + barWidth/2, 
+                                gridSprite.base.y + 35, 
+                                barWidth, 4, 
+                                0x00FF00
                             );
                         }
                     }
