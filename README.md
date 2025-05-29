@@ -3,14 +3,20 @@
 
 A web-based medieval kingdom building game built with Phaser 3. Players manage resources, construct buildings, and grow their kingdom through strategic planning and resource management.
 
+## Quick Start
+1. Clone repository
+2. Open index.html in browser
+3. No build process required - single file game
+
 ## Current Implementation
 
 ### Game Features
 - **3×3 Grid System**: Progressive plot unlocking with exponential costs
-- **Resource Management**: Gold, Food, Wood, Population tracking
+- **Resource Management**: Food, Wood, Gold, Population tracking
 - **Building Types**: 
-  - Wheat Field: Produces 10 gold every 60 seconds (Cost: 10 gold)
-  - Peasant Hut: Produces 1 population every 120 seconds (Cost: 15 gold)
+  - Wheat Field: Produces 10 food every 60 seconds (Cost: 10 food)
+  - Woodcutter's Hut>?>?>?>?>?>?: Produces 1 wood every 10 seconds (Cost: 10 food + 10 wood)
+  - Shelter>?>?>?>?>?>?: Produces 1 population every 240 seconds (Cost: 15 wood)
 - **Production System**: Timed production with visual progress bars and harvest-ready indicators
 - **Save System**: Auto-save every 30 seconds with offline progress calculation
 - **Mobile Support**: Touch-responsive design
@@ -46,9 +52,11 @@ A web-based medieval kingdom building game built with Phaser 3. Players manage r
 ## Resource Economy Design
 
 ### Current Resources
-- **Gold**: Primary currency, moderately scarce early game
-- **Food**: Currently unused - planned for population maintenance
-- **Wood**: Currently unused - planned for Tier 2+ construction
+- **Food**: Primary currency, moderately scarce early game
+- **Wood**: Currently unused - planned for Tier 1+ construction
+- **Stone**: Currently unused - planned for Tier 2+ construction
+- **Gold**: Currently unused - planned for population maintenance
+- 
 - **Population**: Workforce + planned upgrade currency
 
 ### Resource Philosophy
@@ -58,9 +66,9 @@ A web-based medieval kingdom building game built with Phaser 3. Players manage r
 - **Multiple Currency Types**: Prevents single resource bottlenecks
 
 ### Building Tier System
-- **Tier 1**: Gold only (current: Wheat Field, Peasant Hut)
-- **Tier 2**: Gold + Wood (planned)
-- **Tier 3**: Gold + Wood + Stone (planned)
+- **Tier 1**: Food + Wood (current: Wheat Field, Peasant Hut)
+- **Tier 2**: Food + Wood + Stone (planned)
+- **Tier 3**: Food + Stone + ??? (planned)
 - **Tier 4+**: Multiple rare materials (planned)
 
 ## Long-term Vision
@@ -73,7 +81,7 @@ A web-based medieval kingdom building game built with Phaser 3. Players manage r
 
 2. **Specialization (20-60 min)**
    - Population-bought upgrades unlock
-   - Building evolution chains (peasant hut→house→mansion→estate→castle)
+   - Building evolution chains (Shelter>peasant hut→house→mansion→estate→castle>?)
    - Automation options available
    - Multiple viable strategies emerge
 
@@ -89,12 +97,20 @@ A web-based medieval kingdom building game built with Phaser 3. Players manage r
 - **Automation**: Auto-harvest buildings
 - **Production Multipliers**: Increase output rates
 - **Speed Boosts**: Faster production cycles
-- **Building Evolution**: Upgrade building types permanently
+- **Building Evolution**: Upgrade building types 
 
 #### Advanced Systems
 - **Building Evolution Chains**: Linear progression paths for each building type
+   - **Wheat Field>Potato Farm>Apple Orchard>?>?>?>?
+   - **Woodcutter's Hut>?>?>?>?>?>?
+   - **Quarry>?>?>?>?>?>?
+   - **Shelter>?>?>?>?>?>?
+   - **Market>?>?>?>?>?>?
+   - **Blacksmith>?>?>?>?>?>?
+   - **Tavern>?>?>?>?>?>?
 - **Advanced Materials**: Stone, Iron, etc. for higher-tier construction
 - **Food Consumption**: Population maintenance mechanic
+   **If the population is unfed meaning, if the time for the consumption comes and there is not enough food, production speed AND output are Halved!
 - **Automation Balance**: Population-cost auto-harvest unlocks
 
 ## Development Standards
@@ -127,10 +143,12 @@ A web-based medieval kingdom building game built with Phaser 3. Players manage r
 4. **Wood resource integration** - Tier 2 building requirements
 
 ### Known Limitations
+- Food and Gold need to be switched out in the code where they have been changed in this update
 - Food and Wood resources currently unused
 - Only 2 building types available
 - No automation options
 - Limited late-game content
+- need to program the building upgrade menu 
 
 ## Contributing
 
