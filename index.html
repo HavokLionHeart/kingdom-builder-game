@@ -26,9 +26,10 @@
         // Game state with save/load functionality
         const gameState = {
             resources: {
-                gold: 50,
-                food: 0,
+                food: 50,
                 wood: 0,
+                stone: 0,
+                gold: 0,
                 population: 2
             },
             plots: Array(9).fill(null).map((_, i) => ({
@@ -39,13 +40,19 @@
                 // Future upgrade system
                 level: 1,
                 productionSpeed: 1.0,
-                harvestMultiplier: 1.0
+                harvestMultiplier: 1.0,
+                autoHarvest: false
             })),
             nextPlotCost: 100,
             selectedPlot: -1,
             showBuildMenu: false,
+            showUpgradeMenu: false,
             lastSaved: Date.now(),
-            totalPlayTime: 0
+            totalPlayTime: 0,
+            // Food consumption tracking
+            lastFoodConsumption: Date.now(),
+            foodConsumptionRate: 120000, // 2 minutes per food consumption
+            isStarving: false
         };
 
         // Save/Load System
@@ -139,21 +146,50 @@
             }
         };
 
-        // Building definitions
+// Building definitions - Fixed to match README
         const buildingTypes = {
             wheatField: {
                 name: 'Wheat Field',
-                cost: { gold: 10 },
+                cost: { food: 10 }, // Changed from gold to food
                 harvestTime: 60000, // 60 seconds
-                produces: { gold: 10 },
-                color: 0xDAA520
+                produces: { food: 10 }, // Changed from gold to food
+                color: 0xDAA520,
+                description: 'Produces 10 food every 60 seconds'
             },
-            peasantHut: {
-                name: 'Peasant Hut',
-                cost: { gold: 15 },
-                harvestTime: 120000, // 2 minutes
+            woodcuttersHut: {
+                name: "Woodcutter's Hut",
+                cost: { food: 10, wood: 10 },
+                harvestTime: 10000, // 10 seconds as per README
+                produces: { wood: 1 },
+                color: 0x8B4513,
+                description: 'Produces 1 wood every 10 seconds'
+            },
+            shelter: {
+                name: 'Shelter',
+                cost: { wood: 15 }, // Changed from food to wood
+                harvestTime: 240000, // 4 minutes (240 seconds)
                 produces: { population: 1 },
-                color: 0x8B4513
+                color: 0x654321,
+                description: 'Produces 1 population every 240 seconds'
+            }
+        };
+
+        // Population upgrade costs and effects
+        const populationUpgrades = {
+            autoHarvest: {
+                name: 'Auto-Harvest',
+                cost: 3,
+                description: 'Building harvests automatically'
+            },
+            speedBoost: {
+                name: 'Speed Boost',
+                cost: 2,
+                description: '+25% production speed'
+            },
+            outputMultiplier: {
+                name: 'Output Boost',
+                cost: 5,
+                description: '+50% resource output'
             }
         };
 
@@ -194,6 +230,14 @@
                 this.time.addEvent({
                     delay: 1000,
                     callback: this.updateBuildings,
+                    callbackScope: this,
+                    loop: true
+                });
+
+                 // Food consumption timer
+                this.time.addEvent({
+                    delay: gameState.foodConsumptionRate,
+                    callback: this.consumeFood,
                     callbackScope: this,
                     loop: true
                 });
@@ -243,7 +287,19 @@
                     const buildingDef = buildingTypes[plot.building];
                     buildingSprite = this.add.rectangle(x, y, 48, 48, buildingDef.color);
                     buildingSprite.setStrokeStyle(2, 0x000000);
+                
+                    // Add upgrade indicators
+                    if (plot.autoHarvest) {
+                        const autoIcon = this.add.circle(x + 15, y - 15, 4, 0x00FF00);
+                    }
+                    if (plot.productionSpeed > 1.0) {
+                        const speedIcon = this.add.circle(x - 15, y - 15, 4, 0x0080FF);
+                    }
+                    if (plot.harvestMultiplier > 1.0) {
+                        const multIcon = this.add.circle(x + 15, y + 15, 4, 0xFF8000);
+                    }
                 }
+
                 
                 // Plot number text
                 const plotText = this.add.text(x - 25, y - 25, (plotIndex + 1).toString(), {
@@ -263,31 +319,44 @@
                 };
 
                 // Click handler
-                base.on('pointerdown', () => this.handlePlotClick(plotIndex));
+                base.on('pointerdown', (pointer, localX, localY, event) => {
+                    if (event.button === 2) { // Right click for upgrades
+                        this.showUpgradeMenu(plotIndex);
+                    } else {
+                        this.handlePlotClick(plotIndex);
+                    }
+                });
+                
                 if (buildingSprite) {
                     buildingSprite.setInteractive();
-                    buildingSprite.on('pointerdown', () => this.handlePlotClick(plotIndex));
+                    buildingSprite.on('pointerdown', (pointer, localX, localY, event) => {
+                        if (event.button === 2) { // Right click for upgrades
+                            this.showUpgradeMenu(plotIndex);
+                        } else {
+                            this.handlePlotClick(plotIndex);
+                        }
+                    });
                 }
             }
 
             createUI() {
                 // Resource display
                 const uiY = 30;
-                this.uiElements.goldText = this.add.text(20, uiY, `Gold: ${gameState.resources.gold}`, {
+                this.uiElements.foodText = this.add.text(20, uiY, `Food: ${gameState.resources.food}`, {
                     fontSize: '16px',
-                    fill: '#FFD700',
+                    fill: gameState.isStarving ? '#FF6666' : '#90EE90',
                     fontFamily: 'Courier New'
                 });
                 
-                this.uiElements.foodText = this.add.text(20, uiY + 25, `Food: ${gameState.resources.food}`, {
-                    fontSize: '16px',
-                    fill: '#90EE90',
-                    fontFamily: 'Courier New'
-                });
-                
-                this.uiElements.woodText = this.add.text(20, uiY + 50, `Wood: ${gameState.resources.wood}`, {
+                this.uiElements.woodText = this.add.text(20, uiY + 25, `Wood: ${gameState.resources.wood}`, {
                     fontSize: '16px',
                     fill: '#8B4513',
+                    fontFamily: 'Courier New'
+                });
+                
+                this.uiElements.stoneText = this.add.text(20, uiY + 50, `Stone: ${gameState.resources.stone}`, {
+                    fontSize: '16px',
+                    fill: '#A0A0A0',
                     fontFamily: 'Courier New'
                 });
                 
@@ -297,8 +366,21 @@
                     fontFamily: 'Courier New'
                 });
 
+                // Starvation warning
+                this.uiElements.starvationWarning = this.add.text(20, uiY + 100, '', {
+                    fontSize: '14px',
+                    fill: '#FF0000',
+                    fontFamily: 'Courier New'
+                });
+
                 // Instructions
-                this.add.text(20, this.cameras.main.height - 60, 'Tap plots to build/harvest', {
+                this.add.text(20, this.cameras.main.height - 80, 'Left click: build/harvest', {
+                    fontSize: '14px',
+                    fill: '#D4B896',
+                    fontFamily: 'Courier New'
+                });
+
+                this.add.text(20, this.cameras.main.height - 60, 'Right click: upgrades (costs population)', {
                     fontSize: '14px',
                     fill: '#D4B896',
                     fontFamily: 'Courier New'
@@ -312,12 +394,16 @@
             }
 
             setupInput() {
-                // Handle clicking outside build menu to close it
+                // Handle clicking outside menus to close them
                 this.input.on('pointerdown', (pointer, currentlyOver) => {
-                    if (gameState.showBuildMenu && currentlyOver.length === 0) {
+                    if ((gameState.showBuildMenu || gameState.showUpgradeMenu) && currentlyOver.length === 0) {
                         this.hideBuildMenu();
+                        this.hideUpgradeMenu();
                     }
                 });
+
+                // Enable right-click context menu prevention
+                this.input.mouse.disableContextMenu();
             }
 
             handlePlotClick(plotIndex) {
@@ -326,6 +412,9 @@
                 if (!plot.unlocked) {
                     this.showBuyPlotMenu(plotIndex);
                 } else if (plot.building) {
+                    if (plot.autoHarvest) {
+                        return; // Auto-harvest buildings don't need manual harvesting
+                    }
                     this.harvestBuilding(plotIndex);
                 } else {
                     this.showBuildMenu(plotIndex);
@@ -333,21 +422,22 @@
             }
 
             showBuildMenu(plotIndex) {
-                this.hideBuildMenu(); // Close existing menu
+                this.hideBuildMenu();
+                this.hideUpgradeMenu();
                 
                 gameState.selectedPlot = plotIndex;
                 gameState.showBuildMenu = true;
                 
                 const plot = this.gridSprites[plotIndex];
-                const menuX = plot.base.x + 40;
-                const menuY = plot.base.y - 60;
+                const menuX = plot.base.x + 60;
+                const menuY = plot.base.y - 80;
                 
                 // Menu background
                 const menuBg = this.add.rectangle(menuX, menuY, 160, 120, 0x2c1810, 0.9);
                 menuBg.setStrokeStyle(2, 0x8b4513);
                 
                 // Title
-                const title = this.add.text(menuX, menuY - 45, 'Build:', {
+                const title = this.add.text(menuX, menuY - 75, 'Build:', {
                     fontSize: '14px',
                     fill: '#D4B896',
                     fontFamily: 'Courier New',
@@ -355,32 +445,44 @@
                 }).setOrigin(0.5);
                 
                 // Build options
-                let yOffset = -20;
+                let yOffset = -50;
                 const buttons = [];
                 
-                // Wheat Field button
-                const wheatCost = buildingTypes.wheatField.cost.gold;
-                const canBuildWheat = gameState.resources.gold >= wheatCost;
+                 // Wheat Field button
+                const wheatCost = buildingTypes.wheatField.cost;
+                const canBuildWheat = this.canAffordBuilding('wheatField');
                 const wheatBtn = this.createMenuButton(
                     menuX, menuY + yOffset, 
-                    `Wheat Field (${wheatCost}g)`, 
+                    `Wheat Field (${wheatCost.food}f)`, 
                     canBuildWheat,
                     () => this.buildBuilding('wheatField')
                 );
                 buttons.push(...wheatBtn);
-                yOffset += 25;
+                yOffset += 30;
                 
-                // Peasant Hut button
-                const hutCost = buildingTypes.peasantHut.cost.gold;
-                const canBuildHut = gameState.resources.gold >= hutCost;
+                // Woodcutter's Hut button
+                const hutCost = buildingTypes.woodcuttersHut.cost;
+                const canBuildHut = this.canAffordBuilding('woodcuttersHut');
                 const hutBtn = this.createMenuButton(
                     menuX, menuY + yOffset,
-                    `Peasant Hut (${hutCost}g)`,
+                    `Woodcutter's Hut (${hutCost.food}f,${hutCost.wood}w)`,
                     canBuildHut,
-                    () => this.buildBuilding('peasantHut')
+                    () => this.buildBuilding('woodcuttersHut')
                 );
                 buttons.push(...hutBtn);
-                yOffset += 25;
+                yOffset += 30;
+                
+                // Shelter button
+                const shelterCost = buildingTypes.shelter.cost;
+                const canBuildShelter = this.canAffordBuilding('shelter');
+                const shelterBtn = this.createMenuButton(
+                    menuX, menuY + yOffset,
+                    `Shelter (${shelterCost.wood}w)`,
+                    canBuildShelter,
+                    () => this.buildBuilding('shelter')
+                );
+                buttons.push(...shelterBtn);
+                yOffset += 30;
                 
                 // Close button
                 const closeBtn = this.createMenuButton(
@@ -397,9 +499,97 @@
                     buttons: buttons
                 };
             }
+             
+            showUpgradeMenu(plotIndex) {
+                const plot = gameState.plots[plotIndex];
+                if (!plot.building || !plot.unlocked) return;
+
+                this.hideBuildMenu();
+                this.hideUpgradeMenu();
+                
+                gameState.selectedPlot = plotIndex;
+                gameState.showUpgradeMenu = true;
+                
+                const plotSprite = this.gridSprites[plotIndex];
+                const menuX = plotSprite.base.x - 60;
+                const menuY = plotSprite.base.y - 80;
+                
+                // Menu background
+                const menuBg = this.add.rectangle(menuX, menuY, 200, 160, 0x2c1810, 0.9);
+                menuBg.setStrokeStyle(2, 0x8b4513);
+                
+                // Title
+                const title = this.add.text(menuX, menuY - 65, 'Upgrades (Population):', {
+                    fontSize: '12px',
+                    fill: '#D4B896',
+                    fontFamily: 'Courier New',
+                    align: 'center'
+                }).setOrigin(0.5);
+                
+                let yOffset = -40;
+                const buttons = [];
+                
+                // Auto-harvest upgrade
+                if (!plot.autoHarvest) {
+                    const autoUpgrade = populationUpgrades.autoHarvest;
+                    const canAfford = gameState.resources.population >= autoUpgrade.cost;
+                    const autoBtn = this.createMenuButton(
+                        menuX, menuY + yOffset,
+                        `${autoUpgrade.name} (${autoUpgrade.cost}p)`,
+                        canAfford,
+                        () => this.purchaseUpgrade(plotIndex, 'autoHarvest')
+                    );
+                    buttons.push(...autoBtn);
+                    yOffset += 25;
+                }
+                
+                // Speed boost upgrade
+                if (plot.productionSpeed < 2.0) {
+                    const speedUpgrade = populationUpgrades.speedBoost;
+                    const canAfford = gameState.resources.population >= speedUpgrade.cost;
+                    const speedBtn = this.createMenuButton(
+                        menuX, menuY + yOffset,
+                        `${speedUpgrade.name} (${speedUpgrade.cost}p)`,
+                        canAfford,
+                        () => this.purchaseUpgrade(plotIndex, 'speedBoost')
+                    );
+                    buttons.push(...speedBtn);
+                    yOffset += 25;
+                }
+                
+                // Output multiplier upgrade
+                if (plot.harvestMultiplier < 2.0) {
+                    const multUpgrade = populationUpgrades.outputMultiplier;
+                    const canAfford = gameState.resources.population >= multUpgrade.cost;
+                    const multBtn = this.createMenuButton(
+                        menuX, menuY + yOffset,
+                        `${multUpgrade.name} (${multUpgrade.cost}p)`,
+                        canAfford,
+                        () => this.purchaseUpgrade(plotIndex, 'outputMultiplier')
+                    );
+                    buttons.push(...multBtn);
+                    yOffset += 25;
+                }
+                
+                // Close button
+                const closeBtn = this.createMenuButton(
+                    menuX, menuY + yOffset,
+                    'Close',
+                    true,
+                    () => this.hideUpgradeMenu()
+                );
+                buttons.push(...closeBtn);
+                
+                this.upgradeMenu = {
+                    background: menuBg,
+                    title: title,
+                    buttons: buttons
+                };
+            }
 
             showBuyPlotMenu(plotIndex) {
                 this.hideBuildMenu();
+                this.hideUpgradeMenu();
                 
                 gameState.selectedPlot = plotIndex;
                 gameState.showBuildMenu = true;
@@ -485,6 +675,33 @@
                 gameState.selectedPlot = -1;
             }
 
+                        hideUpgradeMenu() {
+                if (this.upgradeMenu) {
+                    this.upgradeMenu.background.destroy();
+                    this.upgradeMenu.title.destroy();
+                    this.upgradeMenu.buttons.forEach(btnArray => {
+                        if (Array.isArray(btnArray)) {
+                            btnArray.forEach(element => element.destroy());
+                        } else {
+                            btnArray.destroy();
+                        }
+                    });
+                    this.upgradeMenu = null;
+                }
+                gameState.showUpgradeMenu = false;
+                gameState.selectedPlot = -1;
+            }
+
+            canAffordBuilding(buildingType) {
+                const cost = buildingTypes[buildingType].cost;
+                for (let resource in cost) {
+                    if (gameState.resources[resource] < cost[resource]) {
+                        return false;
+                    }
+                }
+                return true;
+            }
+
             buildBuilding(type) {
                 const plotIndex = gameState.selectedPlot;
                 const plot = gameState.plots[plotIndex];
@@ -497,23 +714,12 @@
                 
                 // Create building
                 plot.building = type;
-                plot.nextHarvest = Date.now() + buildingDef.harvestTime;
+                const effectiveHarvestTime = gameState.isStarving ? 
+                    buildingDef.harvestTime * 2 : buildingDef.harvestTime;
+                plot.nextHarvest = Date.now() + Math.floor(effectiveHarvestTime / plot.productionSpeed);
                 
-                // Update visual
-                const gridSprite = this.gridSprites[plotIndex];
-                if (gridSprite.building) gridSprite.building.destroy();
-                
-                const buildingSprite = this.add.rectangle(
-                    gridSprite.base.x, 
-                    gridSprite.base.y, 
-                    48, 48, 
-                    buildingDef.color
-                );
-                buildingSprite.setStrokeStyle(2, 0x000000);
-                buildingSprite.setInteractive();
-                buildingSprite.on('pointerdown', () => this.handlePlotClick(plotIndex));
-                
-                gridSprite.building = buildingSprite;
+                // Update visual - need to recreate the entire plot
+                this.recreatePlotVisual(plotIndex);
                 
                 this.updateUI();
                 this.hideBuildMenu();
@@ -522,10 +728,10 @@
             buyPlot(plotIndex) {
                 const plot = gameState.plots[plotIndex];
                 
-                if (gameState.resources.gold < gameState.nextPlotCost) return;
+                if (gameState.resources.food < gameState.nextPlotCost) return;
                 
                 // Deduct cost
-                gameState.resources.gold -= gameState.nextPlotCost;
+                gameState.resources.food -= gameState.nextPlotCost;
                 
                 // Unlock plot
                 plot.unlocked = true;
@@ -540,6 +746,8 @@
                 this.updateUI();
                 this.hideBuildMenu();
             }
+
+            
 
             harvestBuilding(plotIndex) {
                 const plot = gameState.plots[plotIndex];
