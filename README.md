@@ -27,6 +27,30 @@ A web-based medieval kingdom building game built with Phaser 3. Players manage r
 - **Assets**: All textures generated programmatically (no external files)
 - **Storage**: localStorage with version tracking
 - **Performance**: 1-second update loop, 60fps target
+- **File Structure**:
+      ├── index.html (minimal - just loads scripts)
+      ├── game/
+      │   ├── core/
+      │   │   ├── gameState.js
+      │   │   ├── config.js
+      │   │   └── main.js
+      │   ├── systems/
+      │   │   ├── saveSystem.js *
+      │   │   ├── upgradeSystem.js
+      │   │   ├── buildingSystem.js
+      │   │   └── resourceSystem.js
+      │   ├── data/
+      │   │   ├── buildingData.js *
+      │   │   ├── upgradeData.js
+      │   │   └── evolutionData.js
+      │   ├── ui/
+      │   │   ├── menuSystem.js
+      │   │   ├── uiElements.js
+      │   │   └── tooltips.js
+      │   └── scenes/
+      │       └── gameScene.js
+      └── build/
+         └── combined.html (for deployment)
 
 ## Design Philosophy
 

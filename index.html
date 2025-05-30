@@ -9,7 +9,7 @@
         body {
             margin: 0;
             padding: 0;
-            background-color: #2c1810;
+            background-color: #373737;
             font-family: 'Courier New', monospace;
             overflow: hidden;
             touch-action: none;
@@ -21,39 +21,17 @@
         }
     </style>
 </head>
-<body>
+<body>    
+    <script src="game/core/gameState.js"></script>
+    <script src="game/data/buildingData.js"></script>
+    <script src="game/systems/saveSystem.js"></script>
+    <script src="game/core/config.js"></script>
+    <script src="game/scenes/gameScene.js"></script>
+    <script src="game/core/main.js"></script>
     <script>
+        
         // Game state with save/load functionality
-        const gameState = {
-            resources: {
-                food: 50,
-                wood: 0,
-                stone: 0,
-                gold: 0,
-                population: 2
-            },
-            plots: Array(9).fill(null).map((_, i) => ({
-                unlocked: i < 2,
-                building: null,
-                harvestReady: false,
-                nextHarvest: 0,
-                // Future upgrade system
-                level: 1,
-                productionSpeed: 1.0,
-                harvestMultiplier: 1.0,
-                autoHarvest: false
-            })),
-            nextPlotCost: 100,
-            selectedPlot: -1,
-            showBuildMenu: false,
-            showUpgradeMenu: false,
-            lastSaved: Date.now(),
-            totalPlayTime: 0,
-            // Food consumption tracking
-            lastFoodConsumption: Date.now(),
-            foodConsumptionRate: 120000, // 2 minutes per food consumption
-            isStarving: false
-        };
+
 
         // Save/Load System
 
