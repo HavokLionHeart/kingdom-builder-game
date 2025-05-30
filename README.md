@@ -11,7 +11,7 @@ A web-based medieval kingdom building game built with Phaser 3. Players manage r
 ## Current Implementation
 
 ### Game Features
-- **3×3 Grid System**: Progressive plot unlocking with exponential costs
+- **3×3 Grid System**: Progressive plot unlocking with exponential costs (Gold to buy land) 
 - **Resource Management**: Food, Wood, Gold, Population tracking
 - **Building Types**: 
   - Wheat Field: Produces 10 food every 60 seconds (Cost: 10 food)

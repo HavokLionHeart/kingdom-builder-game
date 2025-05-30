@@ -359,15 +359,21 @@
                     fill: '#A0A0A0',
                     fontFamily: 'Courier New'
                 });
+
+                this.uiElements.goldText = this.add.text(20, uiY + 75, `Gold: ${gameState.resources.gold}`, {
+                    fontSize: '16px',
+                    fill: '#87CEEB',
+                    fontFamily: 'Courier New'
+                });
                 
-                this.uiElements.popText = this.add.text(20, uiY + 75, `Population: ${gameState.resources.population}`, {
+                this.uiElements.popText = this.add.text(20, uiY + 100, `Population: ${gameState.resources.population}`, {
                     fontSize: '16px',
                     fill: '#87CEEB',
                     fontFamily: 'Courier New'
                 });
 
                 // Starvation warning
-                this.uiElements.starvationWarning = this.add.text(20, uiY + 100, '', {
+                this.uiElements.starvationWarning = this.add.text(20, uiY + 125, '', {
                     fontSize: '14px',
                     fill: '#FF0000',
                     fontFamily: 'Courier New'
@@ -707,11 +713,13 @@
                 const plot = gameState.plots[plotIndex];
                 const buildingDef = buildingTypes[type];
                 
-                if (gameState.resources.gold < buildingDef.cost.gold) return;
+                 if (!this.canAffordBuilding(type)) return;
                 
                 // Deduct cost
-                gameState.resources.gold -= buildingDef.cost.gold;
-                
+                Object.keys(buildingDef.cost).forEach(resource => {
+                gameState.resources[resource] -= buildingDef.cost[resource];
+                });
+
                 // Create building
                 plot.building = type;
                 const effectiveHarvestTime = gameState.isStarving ? 
@@ -728,10 +736,10 @@
             buyPlot(plotIndex) {
                 const plot = gameState.plots[plotIndex];
                 
-                if (gameState.resources.food < gameState.nextPlotCost) return;
+                if (gameState.resources.gold < gameState.nextPlotCost) return;
                 
                 // Deduct cost
-                gameState.resources.food -= gameState.nextPlotCost;
+                gameState.resources.gold -= gameState.nextPlotCost;
                 
                 // Unlock plot
                 plot.unlocked = true;
@@ -849,9 +857,9 @@
             }
 
             updateUI() {
-                this.uiElements.goldText.setText(`Gold: ${gameState.resources.gold}`);
                 this.uiElements.foodText.setText(`Food: ${gameState.resources.food}`);
                 this.uiElements.woodText.setText(`Wood: ${gameState.resources.wood}`);
+                this.uiElements.goldText.setText(`Gold: ${gameState.resources.gold}`);
                 this.uiElements.popText.setText(`Population: ${gameState.resources.population}`);
             }
         }
