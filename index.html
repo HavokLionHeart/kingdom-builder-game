@@ -541,6 +541,226 @@
                 };
             }
              
+             createUpgradeStars(centerX, y, currentLevel, evolution) {
+                const elements = [];
+                const starSize = 8;
+                const starSpacing = 20;
+                const startX = centerX - (6 * starSpacing) / 2;
+                
+                // Create 7 tiers of stars (70 levels total)
+                for (let tier = 0; tier < 7; tier++) {
+                    const tierColor = evolutionTiers[tier].color;
+                    const tierStartLevel = tier * 10;
+                    const tierEndLevel = (tier + 1) * 10;
+                    
+                    // Determine if this tier is accessible
+                    const maxLevelForEvolution = evolutionTiers[evolution].maxLevel;
+                    const tierAccessible = tierStartLevel < maxLevelForEvolution;
+                    
+                    // Create star for this tier
+                    const starX = startX + tier * starSpacing;
+                    const isActive = currentLevel >= tierEndLevel;
+                    const isPartiallyFilled = currentLevel > tierStartLevel && currentLevel < tierEndLevel;
+                    
+                    let fillColor;
+                    let alpha = 1.0;
+                    
+                    if (!tierAccessible) {
+                        fillColor = 0x333333; // Dark gray for inaccessible tiers
+                        alpha = 0.3;
+                    } else if (isActive) {
+                        fillColor = tierColor; // Full color when tier is complete
+                    } else if (isPartiallyFilled) {
+                        fillColor = tierColor; // Same color but we'll add progress indicator
+                        alpha = 0.6;
+                    } else {
+                        fillColor = 0x666666; // Gray for unfilled but accessible
+                        alpha = 0.4;
+                    }
+                    
+                    // Create star shape using multiple triangles
+                    const star = this.add.star(starX, y, 5, starSize/2, starSize, fillColor);
+                    star.setAlpha(alpha);
+                    star.setStrokeStyle(1, 0x000000);
+                    
+                    // Add partial fill indicator for current tier
+                    if (isPartiallyFilled) {
+                        const progress = (currentLevel - tierStartLevel) / 10;
+                        const progressBar = this.add.rectangle(
+                            starX, y + starSize + 3, 
+                            starSize * 1.5 * progress, 2, 
+                            tierColor
+                        );
+                        elements.push(progressBar);
+                    }
+                    
+                    // Make interactive for tooltips
+                    star.setInteractive();
+                    star.on('pointerover', () => {
+                        if (tierAccessible) {
+                            this.showStarTooltip(starX, y - 15, tier, currentLevel, tierStartLevel, tierEndLevel);
+                        }
+                    });
+                    star.on('pointerout', () => {
+                        this.hideStarTooltip();
+                    });
+                    
+                    elements.push(star);
+                }
+                
+                // Add level text below stars
+                const levelText = this.add.text(centerX, y + 20, `Level: ${currentLevel}/${evolutionTiers[evolution].maxLevel}`, {
+                    fontSize: '10px',
+                    fill: '#D4B896',
+                    fontFamily: 'Courier New'
+                }).setOrigin(0.5);
+                elements.push(levelText);
+                
+                return { elements };
+            }
+
+            showStarTooltip(x, y, tier, currentLevel, tierStart, tierEnd) {
+                this.hideStarTooltip();
+                
+                const tierName = `Tier ${tier + 1}`;
+                const levelRange = `${tierStart + 1}-${tierEnd}`;
+                const status = currentLevel >= tierEnd ? 'Complete' : 
+                              currentLevel > tierStart ? `${currentLevel - tierStart}/10` : 
+                              'Locked';
+                
+                this.starTooltip = this.add.text(x, y, `${tierName}\nLevels ${levelRange}\n${status}`, {
+                    fontSize: '10px',
+                    fill: '#FFFFFF',
+                    fontFamily: 'Courier New',
+                    backgroundColor: '#000000',
+                    padding: { x: 4, y: 2 },
+                    align: 'center'
+                }).setOrigin(0.5);
+            }
+
+            hideStarTooltip() {
+                if (this.starTooltip) {
+                    this.starTooltip.destroy();
+                    this.starTooltip = null;
+                }
+            }
+
+            canAffordCost(cost) {
+                for (let resource in cost) {
+                    if (gameState.resources[resource] < cost[resource]) {
+                        return false;
+                    }
+                }
+                return true;
+            }
+
+            formatCost(cost) {
+                const parts = [];
+                for (let resource in cost) {
+                    parts.push(`${cost[resource]} ${resource.charAt(0)}`);
+                }
+                return parts.join(', ');
+            }
+
+            purchaseSpeedUpgrade(plotIndex) {
+                const plot = gameState.plots[plotIndex];
+                const buildingDef = buildingTypes[plot.building];
+                const cost = UpgradeSystem.getSpeedUpgradeCost(buildingDef.baseId, plot.speedLevel);
+                
+                if (gameState.resources.food >= cost) {
+                    gameState.resources.food -= cost;
+                    plot.speedLevel++;
+                    UpgradeSystem.applyUpgrades(plot);
+                    
+                    this.updateUI();
+                    this.hideUpgradeMenu();
+                    this.recreatePlotVisual(plotIndex);
+                }
+            }
+
+            purchaseOutputUpgrade(plotIndex) {
+                const plot = gameState.plots[plotIndex];
+                const buildingDef = buildingTypes[plot.building];
+                const cost = UpgradeSystem.getOutputUpgradeCost(buildingDef.baseId, plot.outputLevel);
+                
+                if (gameState.resources.food >= cost) {
+                    gameState.resources.food -= cost;
+                    plot.outputLevel++;
+                    UpgradeSystem.applyUpgrades(plot);
+                    
+                    this.updateUI();
+                    this.hideUpgradeMenu();
+                    this.recreatePlotVisual(plotIndex);
+                }
+            }
+
+            purchaseAutomation(plotIndex) {
+                const plot = gameState.plots[plotIndex];
+                
+                if (gameState.resources.automationTokens >= 1) {
+                    gameState.resources.automationTokens--;
+                    plot.hasAutomation = true;
+                    UpgradeSystem.applyUpgrades(plot);
+                        // Evolution tier colors and names
+        const evolutionTiers = {
+            0: { color: 0xFFFFFF, name: 'Base', maxLevel: 10 },     // White
+            1: { color: 0x00FF00, name: 'Tier 1', maxLevel: 20 },  // Green
+            2: { color: 0x0080FF, name: 'Tier 2', maxLevel: 30 },  // Blue
+            3: { color: 0x8000FF, name: 'Tier 3', maxLevel: 40 },  // Purple
+            4: { color: 0xFF8000, name: 'Tier 4', maxLevel: 50 },  // Orange
+            5: { color: 0x000000, name: 'Tier 5', maxLevel: 60 },  // Black
+            6: { color: 0xFFD700, name: 'Tier 6', maxLevel: 70 }   // Gold
+        };
+
+        // Building evolution chains
+        const buildingEvolutions = {
+            shelter: [
+                'Shelter', 'Peasant Hut', 'House', 'Mansion', 'Estate', 'Castle', 'Palace'
+            ],
+            wheatField: [
+                'Wheat Field', 'Barley Farm', 'Grain Estate', 'Agricultural Manor', 
+                'Harvest Plantation', 'Royal Granary', 'Imperial Breadbasket'
+            ],
+            woodcuttersHut: [
+                "Woodcutter's Hut", 'Lumber Mill', 'Timber Yard', 'Forest Outpost',
+                'Woodland Estate', 'Ancient Grove', 'World Tree'
+            ]
+        };
+
+        // Building definitions with evolution support
+        const buildingTypes = {
+            wheatField: {
+                baseId: 'wheatField',
+                evolution: 0,
+                name: 'Wheat Field',
+                cost: { food: 10 },
+                harvestTime: 60000, // 60 seconds
+                produces: { food: 10 },
+                color: 0xDAA520,
+                description: 'Produces 10 food every 60 seconds'
+            },
+            woodcuttersHut: {
+                baseId: 'woodcuttersHut',
+                evolution: 0,
+                name: "Woodcutter's Hut",
+                cost: { food: 10, wood: 10 },
+                harvestTime: 10000, // 10 seconds
+                produces: { wood: 1 },
+                color: 0x8B4513,
+                description: 'Produces 1 wood every 10 seconds'
+            },
+            shelter: {
+                baseId: 'shelter',
+                evolution: 0,
+                name: 'Shelter',
+                cost: { wood: 15 },
+                harvestTime: 240000, // 4 minutes
+                produces: { population: 1 },
+                color: 0x654321,
+                description: 'Produces 1 population every 240 seconds'
+            }
+        };
+
             showUpgradeMenu(plotIndex) {
                 const plot = gameState.plots[plotIndex];
                 if (!plot.building || !plot.unlocked) return;
