@@ -257,6 +257,18 @@
                     } else {
                         gameState.isStarving = true;
                         this.uiElements.starvationWarning.setText('⚠️ STARVING! Production halved until fed!');
+                            
+                            // Apply starvation penalty to all buildings
+                    gameState.plots.forEach((plot, index) => {
+                        if (plot.building && plot.unlocked && !plot.harvestReady) {
+                            // Double the remaining time for current productions
+                            const currentTime = Date.now();
+                            const timeRemaining = plot.nextHarvest - currentTime;
+                            if (timeRemaining > 0) {
+                                plot.nextHarvest = currentTime + (timeRemaining * 2);
+                            }
+                        }
+                    });
                     }
                     
                     gameState.lastFoodConsumption = Date.now();
@@ -744,9 +756,12 @@
 
                 // Create building
                 plot.building = type;
-                const effectiveHarvestTime = gameState.isStarving ? 
-                    buildingDef.harvestTime * 2 : buildingDef.harvestTime;
-                plot.nextHarvest = Date.now() + Math.floor(effectiveHarvestTime / plot.productionSpeed);
+                // Apply starvation penalty to harvest time if starving
+                const baseHarvestTime = buildingDef.harvestTime;
+                const starvationMultiplier = gameState.isStarving ? 2 : 1;
+                const effectiveHarvestTime = Math.floor(baseHarvestTime * starvationMultiplier / plot.productionSpeed);
+                
+                plot.nextHarvest = Date.now() + effectiveHarvestTime;
                 
                 // Update visual - need to recreate the entire plot
                 this.recreatePlotVisual(plotIndex);
@@ -779,40 +794,47 @@
 
             
 
-            harvestBuilding(plotIndex) {
-                const plot = gameState.plots[plotIndex];
-                if (!plot.building || !plot.harvestReady) return;
-                
-                const buildingDef = buildingTypes[plot.building];
-                
-                // Add resources (with future upgrade multipliers)
-                Object.keys(buildingDef.produces).forEach(resource => {
-                    const baseAmount = buildingDef.produces[resource];
-                    const finalAmount = Math.floor(baseAmount * plot.harvestMultiplier);
-                    gameState.resources[resource] += finalAmount;
-                });
-                
-                // Reset harvest timer (with future upgrade speed multipliers)
-                const harvestTime = Math.floor(buildingDef.harvestTime / plot.productionSpeed);
-                plot.nextHarvest = Date.now() + harvestTime;
-                plot.harvestReady = false;
-                
-                // Remove harvest indicator and progress bar
-                const gridSprite = this.gridSprites[plotIndex];
-                if (gridSprite.harvestIndicator) {
-                    gridSprite.harvestIndicator.destroy();
-                    gridSprite.harvestIndicator = null;
+                // And modify harvestBuilding method:
+                harvestBuilding(plotIndex) {
+                    const plot = gameState.plots[plotIndex];
+                    if (!plot.building || !plot.harvestReady) return;
+                    
+                    const buildingDef = buildingTypes[plot.building];
+                    
+                    // Apply starvation penalty to output if starving
+                    const starvationMultiplier = gameState.isStarving ? 0.5 : 1;
+                    
+                    // Add resources (with starvation penalty and upgrade multipliers)
+                    Object.keys(buildingDef.produces).forEach(resource => {
+                        const baseAmount = buildingDef.produces[resource];
+                        const finalAmount = Math.floor(baseAmount * plot.harvestMultiplier * starvationMultiplier);
+                        gameState.resources[resource] += finalAmount;
+                    });
+                    
+                    // Reset harvest timer (with starvation penalty and upgrade speed multipliers)
+                    const baseHarvestTime = buildingDef.harvestTime;
+                    const starvationTimeMultiplier = gameState.isStarving ? 2 : 1;
+                    const harvestTime = Math.floor(baseHarvestTime * starvationTimeMultiplier / plot.productionSpeed);
+                    
+                    plot.nextHarvest = Date.now() + harvestTime;
+                    plot.harvestReady = false;
+                    
+                    // Remove harvest indicator and progress bar
+                    const gridSprite = this.gridSprites[plotIndex];
+                    if (gridSprite.harvestIndicator) {
+                        gridSprite.harvestIndicator.destroy();
+                        gridSprite.harvestIndicator = null;
+                    }
+                    if (gridSprite.progressBar) {
+                        gridSprite.progressBar.destroy();
+                        gridSprite.progressBg.destroy();
+                        gridSprite.progressBar = null;
+                        gridSprite.progressBg = null;
+                    }
+                    
+                    this.updateUI();
+                    SaveSystem.autoSave(); // Save after harvest
                 }
-                if (gridSprite.progressBar) {
-                    gridSprite.progressBar.destroy();
-                    gridSprite.progressBg.destroy();
-                    gridSprite.progressBar = null;
-                    gridSprite.progressBg = null;
-                }
-                
-                this.updateUI();
-                SaveSystem.autoSave(); // Save after harvest
-            }
 
             updateBuildings() {
                 const currentTime = Date.now();
