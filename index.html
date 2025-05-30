@@ -111,6 +111,11 @@
                 gameState.plots.forEach(plot => {
                     if (plot.building && plot.unlocked) {
                         const buildingDef = buildingTypes[plot.building];
+                        if (!buildingDef) {
+                            console.warn(`Unknown building type: ${plot.building}, resetting plot`);
+                            plot.building = null;
+                            return;
+                        }
                         const harvestsCompleted = Math.floor(offlineTime / buildingDef.harvestTime);
                         
                         if (harvestsCompleted > 0) {
@@ -240,9 +245,26 @@
                     callback: this.consumeFood,
                     callbackScope: this,
                     loop: true
-                });
-            }
-
+                });                   
+        }
+                consumeFood() {
+                    const foodNeeded = gameState.resources.population;
+                    
+                    if (gameState.resources.food >= foodNeeded) {
+                        gameState.resources.food -= foodNeeded;
+                        gameState.isStarving = false;
+                        this.uiElements.starvationWarning.setText('');
+                    } else {
+                        gameState.isStarving = true;
+                        this.uiElements.starvationWarning.setText('⚠️ STARVING! Production halved until fed!');
+                    }
+                    
+                    gameState.lastFoodConsumption = Date.now();
+                    this.updateUI();
+                    
+                    // Update food text color based on starvation status
+                    this.uiElements.foodText.setFill(gameState.isStarving ? '#FF6666' : '#90EE90');
+                }
             createTextures() {
                 // Create a 1x1 white pixel texture
                 const graphics = this.add.graphics();
