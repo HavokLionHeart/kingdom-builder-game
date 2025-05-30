@@ -349,7 +349,8 @@
                     plotText: plotText,
                     harvestIndicator: null,
                     progressBar: null,
-                    progressBg: null
+                    progressBg: null,
+                    upgradeIndicators: []
                 };
 
                 // Click handler
@@ -741,6 +742,93 @@
                 }
                 return true;
             }
+
+            recreatePlotVisual(plotIndex) {
+                const plot = gameState.plots[plotIndex];
+                const gridSprite = this.gridSprites[plotIndex];
+                
+                // Clean up existing building sprite and indicators
+                if (gridSprite.building) {
+                    gridSprite.building.destroy();
+                    gridSprite.building = null;
+                }
+                
+                // Clean up existing upgrade indicators
+                if (gridSprite.upgradeIndicators) {
+                    gridSprite.upgradeIndicators.forEach(indicator => indicator.destroy());
+                    gridSprite.upgradeIndicators = [];
+                }
+                
+                // Clean up progress elements
+                if (gridSprite.progressBar) {
+                    gridSprite.progressBar.destroy();
+                    gridSprite.progressBg.destroy();
+                    gridSprite.progressBar = null;
+                    gridSprite.progressBg = null;
+                }
+                
+                // Clean up harvest indicator
+                if (gridSprite.harvestIndicator) {
+                    gridSprite.harvestIndicator.destroy();
+                    gridSprite.harvestIndicator = null;
+                }
+                
+                // Create new building sprite if building exists
+                if (plot.building) {
+                    const buildingDef = buildingTypes[plot.building];
+                    const x = gridSprite.base.x;
+                    const y = gridSprite.base.y;
+                    
+                    // Create building sprite
+                    gridSprite.building = this.add.rectangle(x, y, 48, 48, buildingDef.color);
+                    gridSprite.building.setStrokeStyle(2, 0x000000);
+                    gridSprite.building.setInteractive();
+                    
+                    // Add click handler to building sprite
+                    gridSprite.building.on('pointerdown', (pointer, localX, localY, event) => {
+                        if (event.button === 2) { // Right click for upgrades
+                            this.showUpgradeMenu(plotIndex);
+                        } else {
+                            this.handlePlotClick(plotIndex);
+                        }
+                    });
+                    
+                    // Create upgrade indicators array
+                    gridSprite.upgradeIndicators = [];
+                    
+                    // Add upgrade indicators
+                    if (plot.autoHarvest) {
+                        const autoIcon = this.add.circle(x + 15, y - 15, 4, 0x00FF00);
+                        autoIcon.setStrokeStyle(1, 0x000000);
+                        gridSprite.upgradeIndicators.push(autoIcon);
+                    }
+                    
+                    if (plot.productionSpeed > 1.0) {
+                        const speedIcon = this.add.circle(x - 15, y - 15, 4, 0x0080FF);
+                        speedIcon.setStrokeStyle(1, 0x000000);
+                        gridSprite.upgradeIndicators.push(speedIcon);
+                    }
+                    
+                    if (plot.harvestMultiplier > 1.0) {
+                        const multIcon = this.add.circle(x + 15, y + 15, 4, 0xFF8000);
+                        multIcon.setStrokeStyle(1, 0x000000);
+                        gridSprite.upgradeIndicators.push(multIcon);
+                    }
+                    
+                    // Add building level indicator if above level 1
+                    if (plot.level > 1) {
+                        const levelText = this.add.text(x - 15, y + 15, plot.level.toString(), {
+                            fontSize: '10px',
+                            fill: '#ffffff',
+                            fontFamily: 'Courier New',
+                            backgroundColor: '#000000',
+                            padding: { x: 2, y: 1 }
+                        }).setOrigin(0.5);
+                        gridSprite.upgradeIndicators.push(levelText);
+                    }
+                }
+            }
+
 
             buildBuilding(type) {
                 const plotIndex = gameState.selectedPlot;
