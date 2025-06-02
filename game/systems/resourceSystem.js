@@ -109,4 +109,85 @@ class ResourceSystem {
         };
         return colors[resource] || GAME_CONSTANTS.COLORS.TEXT_PRIMARY;
     }
+}class ResourceSystem {
+    constructor(scene) {
+        this.scene = scene;
+    }
+
+    consumeFood() {
+        const foodNeeded = gameState.resources.population;
+        
+        if (gameState.resources.food >= foodNeeded) {
+            gameState.resources.food -= foodNeeded;
+            gameState.isStarving = false;
+            this.scene.uiElements.updateStarvationWarning('');
+        } else {
+            gameState.isStarving = true;
+            this.scene.uiElements.updateStarvationWarning('⚠️ STARVING! Production halved until fed!');
+                
+            // Apply starvation penalty to all buildings
+            gameState.plots.forEach((plot, index) => {
+                if (plot.building && plot.unlocked && !plot.harvestReady) {
+                    // Double the remaining time for current productions
+                    const currentTime = Date.now();
+                    const timeRemaining = plot.nextHarvest - currentTime;
+                    if (timeRemaining > 0) {
+                        plot.nextHarvest = currentTime + (timeRemaining * 2);
+                    }
+                }
+            });
+        }
+        
+        gameState.lastFoodConsumption = Date.now();
+        this.scene.uiElements.updateUI();
+    }
+
+    buyPlot(plotIndex) {
+        const plot = gameState.plots[plotIndex];
+        
+        if (gameState.resources.gold < gameState.nextPlotCost) return;
+        
+        // Deduct cost
+        gameState.resources.gold -= gameState.nextPlotCost;
+        
+        // Unlock plot
+        plot.unlocked = true;
+        
+        // Update visual
+        const gridSprite = this.scene.gridSprites[plotIndex];
+        gridSprite.base.setFillStyle(0x8FBC8F);
+        
+        // Increase next plot cost
+        gameState.nextPlotCost = Math.floor(gameState.nextPlotCost * 2);
+        
+        this.scene.uiElements.updateUI();
+        this.scene.menuSystem.hideBuildMenu();
+    }
+
+    purchaseUpgrade(plotIndex, upgradeType) {
+        const plot = gameState.plots[plotIndex];
+        const upgrade = populationUpgrades[upgradeType];
+        
+        if (gameState.resources.population < upgrade.cost) return;
+        
+        // Deduct cost
+        gameState.resources.population -= upgrade.cost;
+        
+        // Apply upgrade
+        switch(upgradeType) {
+            case 'autoHarvest':
+                plot.autoHarvest = true;
+                break;
+            case 'speedBoost':
+                plot.productionSpeed = 2.0;
+                break;
+            case 'outputMultiplier':
+                plot.harvestMultiplier = 2.0;
+                break;
+        }
+        
+        this.scene.uiElements.updateUI();
+        this.scene.menuSystem.hideUpgradeMenu();
+        this.scene.recreatePlotVisual(plotIndex);
+    }
 }

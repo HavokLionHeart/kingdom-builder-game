@@ -1,3 +1,44 @@
+class UpgradeSystem {
+    static getSpeedUpgradeCost(buildingId, currentLevel) {
+        // Exponential cost scaling
+        return Math.floor(10 * Math.pow(1.5, currentLevel));
+    }
+    
+    static getOutputUpgradeCost(buildingId, currentLevel) {
+        // Exponential cost scaling
+        return Math.floor(15 * Math.pow(1.5, currentLevel));
+    }
+    
+    static applyUpgrades(plot) {
+        // Apply speed multiplier
+        plot.productionSpeed = 1.0 + (plot.speedLevel * 0.5);
+        
+        // Apply output multiplier
+        plot.harvestMultiplier = 1.0 + (plot.outputLevel * 0.5);
+        
+        // Apply automation
+        if (plot.hasAutomation) {
+            plot.autoHarvest = true;
+        }
+    }
+    
+    static canAffordCost(cost) {
+        for (let resource in cost) {
+            if (gameState.resources[resource] < cost[resource]) {
+                return false;
+            }
+        }
+        return true;
+    }
+    
+    static formatCost(cost) {
+        const parts = [];
+        for (let resource in cost) {
+            parts.push(`${cost[resource]} ${resource.charAt(0)}`);
+        }
+        return parts.join(', ');
+    }
+}
 // Upgrade system for managing building improvements
 class BuildingUpgradeSystem {
     static purchaseUpgrade(plotIndex, upgradeType) {
@@ -78,4 +119,7 @@ class BuildingUpgradeSystem {
     static hasUpgrades(plotIndex) {
         return this.getAvailableUpgrades(plotIndex).length > 0;
     }
+
+
+
 }
