@@ -22,67 +22,21 @@
     </style>
 </head>
 <body>    
-    <script src="game/core/gameState.js"></script>
-    <script src="game/data/buildingData.js"></script>
-    <script src="game/systems/saveSystem.js"></script>
-    <script src="game/core/config.js"></script>
-    <script src="game/scenes/gameScene.js"></script>
-    <script src="game/core/main.js"></script>
-    <script>
+   <script src="game/core/gameState.js"></script>
+<script src="game/data/buildingData.js"></script>
+<script src="game/data/evolutionData.js"></script>
+<script src="game/data/upgradeData.js"></script>
+<script src="game/core/config.js"></script>
+<script src="game/scenes/gameScene.js"></script>
+<script src="game/core/main.js"></script>
+<script src="game/systems/buildingSystem.js"></script>
+<script src="game/systems/resourceSystem.js"></script>
+<script src="game/systems/saveSystem.js"></script>
+<script src="game/systems/upgradeSystem.js"></script>
+<script src="game/ui/menuSystem.js"></script>
+<script src="game/ui/tooltips.js"></script>
+<script src="game/ui/uiElements.js"></script>
         
         
-
-
-            purchaseSpeedUpgrade(plotIndex) {
-                const plot = gameState.plots[plotIndex];
-                const buildingDef = buildingTypes[plot.building];
-                const cost = UpgradeSystem.getSpeedUpgradeCost(buildingDef.baseId, plot.speedLevel);
-                
-                if (gameState.resources.food >= cost) {
-                    gameState.resources.food -= cost;
-                    plot.speedLevel++;
-                    UpgradeSystem.applyUpgrades(plot);
-                    
-                    this.updateUI();
-                    this.hideUpgradeMenu();
-                    this.recreatePlotVisual(plotIndex);
-                }
-            }
-
-            purchaseOutputUpgrade(plotIndex) {
-                const plot = gameState.plots[plotIndex];
-                const buildingDef = buildingTypes[plot.building];
-                const cost = UpgradeSystem.getOutputUpgradeCost(buildingDef.baseId, plot.outputLevel);
-                
-                if (gameState.resources.food >= cost) {
-                    gameState.resources.food -= cost;
-                    plot.outputLevel++;
-                    UpgradeSystem.applyUpgrades(plot);
-                    
-                    this.updateUI();
-                    this.hideUpgradeMenu();
-                    this.recreatePlotVisual(plotIndex);
-                }
-            }
-
-            purchaseAutomation(plotIndex) {
-                const plot = gameState.plots[plotIndex];
-                
-                if (gameState.resources.automationTokens >= 1) {
-                    gameState.resources.automationTokens--;
-                    plot.hasAutomation = true;
-                    UpgradeSystem.applyUpgrades(plot);
-                        
-            updateUI() {
-                this.uiElements.foodText.setText(`Food: ${gameState.resources.food}`);
-                this.uiElements.woodText.setText(`Wood: ${gameState.resources.wood}`);
-                this.uiElements.goldText.setText(`Gold: ${gameState.resources.gold}`);
-                this.uiElements.popText.setText(`Population: ${gameState.resources.population}`);
-            }
-        }
-
-        // Start the game
-        const game = new Phaser.Game(config);
-    </script>
 </body>
 </html>

@@ -35,12 +35,12 @@ A web-based medieval kingdom building game built with Phaser 3. Players manage r
       │   │   ├── config.js
       │   │   └── main.js
       │   ├── systems/
-      │   │   ├── saveSystem.js *
+      │   │   ├── saveSystem.js 
       │   │   ├── upgradeSystem.js
       │   │   ├── buildingSystem.js
       │   │   └── resourceSystem.js
       │   ├── data/
-      │   │   ├── buildingData.js *
+      │   │   ├── buildingData.js 
       │   │   ├── upgradeData.js
       │   │   └── evolutionData.js
       │   ├── ui/
