@@ -1,21 +1,31 @@
 // Resource management system
 class ResourceSystem {
-    static consumeFood() {
+    constructor(scene) {
+        this.scene = scene;
+    }
+
+    consumeFood() {
         const foodNeeded = gameState.resources.population;
         
         if (gameState.resources.food >= foodNeeded) {
             gameState.resources.food -= foodNeeded;
             gameState.isStarving = false;
+            if (this.scene && this.scene.uiElements) {
+                this.scene.uiElements.updateStarvationWarning('');
+            }
         } else {
             gameState.isStarving = true;
-            
-            // Apply starvation penalty to all buildings in progress
+            if (this.scene && this.scene.uiElements) {
+                this.scene.uiElements.updateStarvationWarning('⚠️ STARVING! Production halved until fed!');
+            }
+                
+            // Apply starvation penalty to all buildings
             gameState.plots.forEach((plot, index) => {
                 if (plot.building && plot.unlocked && !plot.harvestReady) {
+                    // Double the remaining time for current productions
                     const currentTime = Date.now();
                     const timeRemaining = plot.nextHarvest - currentTime;
                     if (timeRemaining > 0) {
-                        // Double the remaining time
                         plot.nextHarvest = currentTime + (timeRemaining * 2);
                     }
                 }
@@ -23,9 +33,12 @@ class ResourceSystem {
         }
         
         gameState.lastFoodConsumption = Date.now();
+        if (this.scene && this.scene.uiElements) {
+            this.scene.uiElements.updateUI();
+        }
     }
-    
-    static processOfflineProgress(offlineTime) {
+
+    processOfflineProgress(offlineTime) {
         if (offlineTime <= 0) return;
         
         // Simulate offline progress for auto-harvest buildings only
@@ -61,7 +74,7 @@ class ResourceSystem {
         gameState.lastFoodConsumption = Date.now() - remainingConsumptionTime;
     }
     
-    static canAffordCost(cost) {
+    canAffordCost(cost) {
         for (let resource in cost) {
             if (gameState.resources[resource] < cost[resource]) {
                 return false;
@@ -70,7 +83,7 @@ class ResourceSystem {
         return true;
     }
     
-    static deductCost(cost) {
+    deductCost(cost) {
         if (!this.canAffordCost(cost)) return false;
         
         for (let resource in cost) {
@@ -79,7 +92,7 @@ class ResourceSystem {
         return true;
     }
     
-    static formatCost(cost) {
+    formatCost(cost) {
         const parts = [];
         for (let resource in cost) {
             const abbreviation = this.getResourceAbbreviation(resource);
@@ -88,7 +101,7 @@ class ResourceSystem {
         return parts.join(', ');
     }
     
-    static getResourceAbbreviation(resource) {
+    getResourceAbbreviation(resource) {
         const abbreviations = {
             food: 'f',
             wood: 'w', 
@@ -99,47 +112,28 @@ class ResourceSystem {
         return abbreviations[resource] || resource.charAt(0);
     }
     
-    static getResourceColor(resource) {
-        const colors = {
-            food: gameState.isStarving ? GAME_CONSTANTS.COLORS.FOOD_STARVING : GAME_CONSTANTS.COLORS.FOOD_NORMAL,
-            wood: GAME_CONSTANTS.COLORS.WOOD,
-            stone: GAME_CONSTANTS.COLORS.STONE,
-            gold: GAME_CONSTANTS.COLORS.GOLD,
-            population: GAME_CONSTANTS.COLORS.POPULATION
+    getResourceColor(resource) {
+        // Safe fallback colors if GAME_CONSTANTS not defined
+        const defaultColors = {
+            food: gameState.isStarving ? 0xFF0000 : 0x00FF00,
+            wood: 0x8B4513,
+            stone: 0x808080,
+            gold: 0xFFD700,
+            population: 0x0080FF
         };
-        return colors[resource] || GAME_CONSTANTS.COLORS.TEXT_PRIMARY;
-    }
-}class ResourceSystem {
-    constructor(scene) {
-        this.scene = scene;
-    }
-
-    consumeFood() {
-        const foodNeeded = gameState.resources.population;
         
-        if (gameState.resources.food >= foodNeeded) {
-            gameState.resources.food -= foodNeeded;
-            gameState.isStarving = false;
-            this.scene.uiElements.updateStarvationWarning('');
-        } else {
-            gameState.isStarving = true;
-            this.scene.uiElements.updateStarvationWarning('⚠️ STARVING! Production halved until fed!');
-                
-            // Apply starvation penalty to all buildings
-            gameState.plots.forEach((plot, index) => {
-                if (plot.building && plot.unlocked && !plot.harvestReady) {
-                    // Double the remaining time for current productions
-                    const currentTime = Date.now();
-                    const timeRemaining = plot.nextHarvest - currentTime;
-                    if (timeRemaining > 0) {
-                        plot.nextHarvest = currentTime + (timeRemaining * 2);
-                    }
-                }
-            });
+        if (typeof GAME_CONSTANTS !== 'undefined' && GAME_CONSTANTS.COLORS) {
+            const colors = {
+                food: gameState.isStarving ? GAME_CONSTANTS.COLORS.FOOD_STARVING : GAME_CONSTANTS.COLORS.FOOD_NORMAL,
+                wood: GAME_CONSTANTS.COLORS.WOOD,
+                stone: GAME_CONSTANTS.COLORS.STONE,
+                gold: GAME_CONSTANTS.COLORS.GOLD,
+                population: GAME_CONSTANTS.COLORS.POPULATION
+            };
+            return colors[resource] || GAME_CONSTANTS.COLORS.TEXT_PRIMARY;
         }
         
-        gameState.lastFoodConsumption = Date.now();
-        this.scene.uiElements.updateUI();
+        return defaultColors[resource] || 0xFFFFFF;
     }
 
     buyPlot(plotIndex) {
@@ -153,15 +147,23 @@ class ResourceSystem {
         // Unlock plot
         plot.unlocked = true;
         
-        // Update visual
-        const gridSprite = this.scene.gridSprites[plotIndex];
-        gridSprite.base.setFillStyle(0x8FBC8F);
+        // Update visual if scene exists
+        if (this.scene && this.scene.gridSprites && this.scene.gridSprites[plotIndex]) {
+            const gridSprite = this.scene.gridSprites[plotIndex];
+            if (gridSprite.base) {
+                gridSprite.base.setFillStyle(0x8FBC8F);
+            }
+        }
         
         // Increase next plot cost
         gameState.nextPlotCost = Math.floor(gameState.nextPlotCost * 2);
         
-        this.scene.uiElements.updateUI();
-        this.scene.menuSystem.hideBuildMenu();
+        if (this.scene && this.scene.uiElements) {
+            this.scene.uiElements.updateUI();
+        }
+        if (this.scene && this.scene.menuSystem) {
+            this.scene.menuSystem.hideBuildMenu();
+        }
     }
 
     purchaseUpgrade(plotIndex, upgradeType) {
@@ -186,8 +188,50 @@ class ResourceSystem {
                 break;
         }
         
-        this.scene.uiElements.updateUI();
-        this.scene.menuSystem.hideUpgradeMenu();
-        this.scene.recreatePlotVisual(plotIndex);
+        if (this.scene && this.scene.uiElements) {
+            this.scene.uiElements.updateUI();
+        }
+        if (this.scene && this.scene.menuSystem) {
+            this.scene.menuSystem.hideUpgradeMenu();
+        }
+        if (this.scene && this.scene.recreatePlotVisual) {
+            this.scene.recreatePlotVisual(plotIndex);
+        }
+    }
+
+    // Convenience methods for backward compatibility with static calls
+    static canAfford(cost) {
+        // Static method that works without scene reference
+        for (let resource in cost) {
+            if (gameState.resources[resource] < cost[resource]) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    static spendResources(cost) {
+        // Static method that works without scene reference
+        if (!this.canAfford(cost)) return false;
+        
+        for (let resource in cost) {
+            gameState.resources[resource] -= cost[resource];
+        }
+        return true;
+    }
+
+    static addResources(resources) {
+        // Static method that works without scene reference
+        for (let resource in resources) {
+            if (gameState.resources.hasOwnProperty(resource)) {
+                gameState.resources[resource] += resources[resource];
+            }
+        }
+    }
+
+    static checkFoodConsumption() {
+        // Static method for checking if food consumption is due
+        const currentTime = Date.now();
+        return currentTime - gameState.lastFoodConsumption >= gameState.foodConsumptionRate;
     }
 }

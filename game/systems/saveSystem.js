@@ -1,9 +1,12 @@
 // Save/Load system with offline progress
-const SaveSystem = {
-    saveKey: 'kingdomBuilder_save',
-    version: '1.0',
+class SaveSystem {
+    constructor(scene) {
+        this.scene = scene;
+        this.saveKey = 'kingdomBuilder_save';
+        this.version = '1.0';
+    }
     
-    save() {
+    saveGame() {
         const saveData = {
             version: this.version,
             timestamp: Date.now(),
@@ -30,12 +33,14 @@ const SaveSystem = {
         try {
             localStorage.setItem(this.saveKey, JSON.stringify(saveData));
             console.log('Game saved successfully');
+            return true;
         } catch (error) {
             console.error('Failed to save game:', error);
+            return false;
         }
-    },
+    }
     
-    load() {
+    loadGame() {
         try {
             const saveData = localStorage.getItem(this.saveKey);
             if (!saveData) {
@@ -84,9 +89,13 @@ const SaveSystem = {
                 }
             });
             
-            // Handle offline food consumption
+            // Handle offline progress using ResourceSystem if available
             if (offlineTime > 0) {
-                this.processOfflineFoodConsumption(offlineTime);
+                if (this.scene && this.scene.resourceSystem) {
+                    this.scene.resourceSystem.processOfflineProgress(offlineTime);
+                } else {
+                    this.processOfflineFoodConsumption(offlineTime);
+                }
             }
             
             console.log(`Game loaded successfully. Offline time: ${Math.floor(offlineTime / 1000)}s`);
@@ -96,7 +105,45 @@ const SaveSystem = {
             console.error('Failed to load game:', error);
             return false;
         }
-    },
+    }
+    
+    calculateOfflineProgress(lastSaveTime) {
+        const offlineTime = Date.now() - lastSaveTime;
+        
+        if (offlineTime <= 0) return { offlineTime: 0, summary: 'No offline time' };
+        
+        let summary = [];
+        let totalResources = { food: 0, wood: 0, stone: 0, gold: 0, population: 0 };
+        
+        // Calculate what auto-harvest buildings would have produced
+        gameState.plots.forEach((plot, index) => {
+            if (plot.building && plot.unlocked && plot.autoHarvest) {
+                const buildingDef = buildingTypes[plot.building];
+                const harvestTime = buildingDef.harvestTime / plot.productionSpeed;
+                const harvests = Math.floor(offlineTime / harvestTime);
+                
+                if (harvests > 0) {
+                    Object.keys(buildingDef.produces).forEach(resource => {
+                        const baseAmount = buildingDef.produces[resource];
+                        const totalAmount = baseAmount * plot.harvestMultiplier * harvests;
+                        totalResources[resource] += Math.floor(totalAmount);
+                    });
+                }
+            }
+        });
+        
+        // Create summary text
+        Object.keys(totalResources).forEach(resource => {
+            if (totalResources[resource] > 0) {
+                summary.push(`+${totalResources[resource]} ${resource}`);
+            }
+        });
+        
+        return {
+            offlineTime,
+            summary: summary.length > 0 ? summary.join(', ') : 'No offline progress'
+        };
+    }
     
     processOfflineFoodConsumption(offlineTime) {
         const consumptionInterval = gameState.foodConsumptionRate;
@@ -115,7 +162,7 @@ const SaveSystem = {
         }
         
         gameState.lastFoodConsumption = Date.now() - (offlineTime % consumptionInterval);
-    },
+    }
     
     autoHarvestBuilding(plot, plotIndex) {
         if (!plot.building || !plot.harvestReady) return;
@@ -137,11 +184,7 @@ const SaveSystem = {
         
         plot.nextHarvest = Date.now() + harvestTime;
         plot.harvestReady = false;
-    },
-    
-    autoSave() {
-        this.save();
-    },
+    }
     
     deleteSave() {
         try {
@@ -153,4 +196,17 @@ const SaveSystem = {
             return false;
         }
     }
-};
+
+    // Static methods for backward compatibility
+    static autoSave() {
+        // This method needs to be called on an instance, so we'll create a temporary one
+        // In practice, the main scene should maintain a saveSystem instance
+        const tempSaveSystem = new SaveSystem(null);
+        return tempSaveSystem.saveGame();
+    }
+
+    // Instance method that matches expected interface
+    autoSave() {
+        return this.saveGame();
+    }
+}
