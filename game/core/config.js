@@ -4,10 +4,16 @@ const config = {
     width: Math.min(800, window.innerWidth),
     height: Math.min(600, window.innerHeight),
     backgroundColor: '#4a6741',
-    scene: GameScene,
+    scene: [], // Empty array - GameScene will be added when it's defined
     scale: {
         mode: Phaser.Scale.FIT,
         autoCenter: Phaser.Scale.CENTER_BOTH
+    },
+    physics: {
+        default: 'arcade',
+        arcade: {
+            debug: false
+        }
     }
 };
 
