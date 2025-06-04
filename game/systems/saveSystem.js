@@ -197,16 +197,27 @@ class SaveSystem {
         }
     }
 
-    // Static methods for backward compatibility
-    static autoSave() {
-        // This method needs to be called on an instance, so we'll create a temporary one
-        // In practice, the main scene should maintain a saveSystem instance
-        const tempSaveSystem = new SaveSystem(null);
-        return tempSaveSystem.saveGame();
-    }
-
-    // Instance method that matches expected interface
+    // Instance method for auto-saving
     autoSave() {
         return this.saveGame();
     }
 }
+
+// Static methods for backward compatibility with existing code
+SaveSystem.autoSave = function() {
+    // Create a temporary instance for backward compatibility
+    const tempSaveSystem = new SaveSystem(null);
+    return tempSaveSystem.saveGame();
+};
+
+SaveSystem.loadGame = function() {
+    // Create a temporary instance for backward compatibility
+    const tempSaveSystem = new SaveSystem(null);
+    return tempSaveSystem.loadGame();
+};
+
+SaveSystem.deleteSave = function() {
+    // Create a temporary instance for backward compatibility
+    const tempSaveSystem = new SaveSystem(null);
+    return tempSaveSystem.deleteSave();
+};
