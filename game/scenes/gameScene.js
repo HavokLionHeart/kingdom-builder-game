@@ -6,6 +6,11 @@ class GameScene extends Phaser.Scene {
         this.buildMenu = null;
         this.upgradeMenu = null;
         this.starTooltip = null;
+        
+        // System instances will be created in create()
+        this.buildingSystem = null;
+        this.resourceSystem = null;
+        this.saveSystem = null;
     }
 
     preload() {
@@ -18,8 +23,13 @@ class GameScene extends Phaser.Scene {
         // Create textures using graphics
         this.createTextures();
         
+        // Initialize system instances
+        this.buildingSystem = new BuildingSystem(this);
+        this.resourceSystem = new ResourceSystem(this);
+        this.saveSystem = new SaveSystem(this);
+        
         // Load save data
-        SaveSystem.load();
+        this.saveSystem.load();
         
         this.createGrid();
         
@@ -32,8 +42,8 @@ class GameScene extends Phaser.Scene {
         // Auto-save every 30 seconds
         this.time.addEvent({
             delay: 30000,
-            callback: SaveSystem.autoSave,
-            callbackScope: SaveSystem,
+            callback: () => this.saveSystem.autoSave(),
+            callbackScope: this,
             loop: true
         });
         
@@ -48,7 +58,7 @@ class GameScene extends Phaser.Scene {
         // Food consumption timer
         this.time.addEvent({
             delay: gameState.foodConsumptionRate,
-            callback: ResourceSystem.consumeFood.bind(ResourceSystem, this),
+            callback: () => this.resourceSystem.consumeFood(),
             callbackScope: this,
             loop: true
         });                   
@@ -265,47 +275,41 @@ class GameScene extends Phaser.Scene {
     }
 
     harvestBuilding(plotIndex) {
-        const plot = gameState.plots[plotIndex];
-        if (!plot.building || !plot.harvestReady) return;
+        // Delegate to BuildingSystem instead of handling directly
+        this.buildingSystem.harvestBuilding(plotIndex);
         
-        const buildingDef = buildingTypes[plot.building];
+        // Update visual elements after harvest
+        this.updatePlotHarvestVisual(plotIndex);
         
-        // Apply starvation penalty to output if starving
-        const starvationMultiplier = gameState.isStarving ? 0.5 : 1;
-        
-        // Add resources (with starvation penalty and upgrade multipliers)
-        Object.keys(buildingDef.produces).forEach(resource => {
-            const baseAmount = buildingDef.produces[resource];
-            const finalAmount = Math.floor(baseAmount * plot.harvestMultiplier * starvationMultiplier);
-            gameState.resources[resource] += finalAmount;
-        });
-        
-        // Reset harvest timer (with starvation penalty and upgrade speed multipliers)
-        const baseHarvestTime = buildingDef.harvestTime;
-        const starvationTimeMultiplier = gameState.isStarving ? 2 : 1;
-        const harvestTime = Math.floor(baseHarvestTime * starvationTimeMultiplier / plot.productionSpeed);
-        
-        plot.nextHarvest = Date.now() + harvestTime;
-        plot.harvestReady = false;
-        
-        // Remove harvest indicator and progress bar
+        // Update UI
+        UIElements.updateUI();
+    }
+
+    updatePlotHarvestVisual(plotIndex) {
         const gridSprite = this.gridSprites[plotIndex];
+        
+        // Remove harvest indicator and progress bar after harvest
         if (gridSprite.harvestIndicator) {
             gridSprite.harvestIndicator.destroy();
             gridSprite.harvestIndicator = null;
         }
         if (gridSprite.progressBar) {
             gridSprite.progressBar.destroy();
-            gridSprite.progressBig.destroy();
+            gridSprite.progressBg.destroy();
             gridSprite.progressBar = null;
             gridSprite.progressBg = null;
         }
-        
-        UIElements.updateUI();
-        SaveSystem.autoSave(); // Save after harvest
     }
 
     updateBuildings() {
+        // Delegate harvest timing updates to BuildingSystem
+        this.buildingSystem.updateHarvestTimes();
+        
+        // Update visual elements
+        this.updateBuildingVisuals();
+    }
+
+    updateBuildingVisuals() {
         const currentTime = Date.now();
         
         gameState.plots.forEach((plot, index) => {
@@ -315,16 +319,7 @@ class GameScene extends Phaser.Scene {
                 const buildingDef = buildingTypes[plot.building];
                 const timeRemaining = plot.nextHarvest - currentTime;
                 
-                if (timeRemaining <= 0 && !plot.harvestReady) {
-                    // Ready to harvest
-                    plot.harvestReady = true;
-                    
-                    // Auto-harvest if enabled
-                    if (plot.autoHarvest) {
-                        this.harvestBuilding(index);
-                        return;
-                    }
-                    
+                if (timeRemaining <= 0 && plot.harvestReady) {
                     // Show harvest indicator
                     if (!gridSprite.harvestIndicator) {
                         gridSprite.harvestIndicator = this.add.circle(
@@ -370,6 +365,12 @@ class GameScene extends Phaser.Scene {
                         barWidth, 4, 
                         0x00FF00
                     );
+                    
+                    // Hide harvest indicator while building
+                    if (gridSprite.harvestIndicator) {
+                        gridSprite.harvestIndicator.destroy();
+                        gridSprite.harvestIndicator = null;
+                    }
                 }
             }
         });

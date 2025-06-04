@@ -1,29 +1,3 @@
-// Evolution tier colors and names
-const evolutionTiers = {
-    0: { color: 0xFFFFFF, name: 'Base', maxLevel: 10 },     // White
-    1: { color: 0x00FF00, name: 'Tier 1', maxLevel: 20 },  // Green
-    2: { color: 0x0080FF, name: 'Tier 2', maxLevel: 30 },  // Blue
-    3: { color: 0x8000FF, name: 'Tier 3', maxLevel: 40 },  // Purple
-    4: { color: 0xFF8000, name: 'Tier 4', maxLevel: 50 },  // Orange
-    5: { color: 0x000000, name: 'Tier 5', maxLevel: 60 },  // Black
-    6: { color: 0xFFD700, name: 'Tier 6', maxLevel: 70 }   // Gold
-};
-
-// Building evolution chains
-const buildingEvolutions = {
-    shelter: [
-        'Shelter', 'Peasant Hut', 'House', 'Mansion', 'Estate', 'Castle', 'Palace'
-    ],
-    wheatField: [
-        'Wheat Field', 'Barley Farm', 'Grain Estate', 'Agricultural Manor', 
-        'Harvest Plantation', 'Royal Granary', 'Imperial Breadbasket'
-    ],
-    woodcuttersHut: [
-        "Woodcutter's Hut", 'Lumber Mill', 'Timber Yard', 'Forest Outpost',
-        'Woodland Estate', 'Ancient Grove', 'World Tree'
-    ]
-};
-
 // Evolution system class
 class EvolutionSystem {
     static getEvolutionLevel(buildingType, level) {
@@ -59,5 +33,35 @@ class EvolutionSystem {
         });
         
         return cost;
+    }
+    
+    static evolveBuilding(plotIndex) {
+        const plot = gameState.plots[plotIndex];
+        if (!plot || !plot.building) return false;
+        
+        const buildingType = plot.building;
+        const currentLevel = plot.level;
+        
+        if (!this.canEvolve(buildingType, currentLevel)) return false;
+        
+        const evolutionLevel = this.getEvolutionLevel(buildingType, currentLevel);
+        const cost = this.getEvolutionCost(buildingType, evolutionLevel);
+        
+        // Check if player can afford evolution
+        if (!resourceSystem.canAfford(cost)) return false;
+        
+        // Spend resources and evolve
+        resourceSystem.spendResources(cost);
+        plot.evolution = evolutionLevel + 1;
+        
+        return true;
+    }
+    
+    static getEvolutionBonus(evolutionLevel) {
+        // Each evolution tier provides cumulative bonuses
+        return {
+            speedMultiplier: 1 + (evolutionLevel * 0.2), // 20% faster per tier
+            outputMultiplier: 1 + (evolutionLevel * 0.15) // 15% more output per tier
+        };
     }
 }

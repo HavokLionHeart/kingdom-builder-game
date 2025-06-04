@@ -33,7 +33,12 @@ class MenuSystem {
             scene, menuX, menuY + yOffset, 
             `Wheat Field (${wheatCost.food}f)`, 
             canBuildWheat,
-            () => BuildingSystem.buildBuilding(scene, 'wheatField')
+            () => {
+                if (scene.buildingSystem) {
+                    scene.buildingSystem.placeBuilding(gameState.selectedPlot, 'wheatField');
+                }
+                this.hideBuildMenu(scene);
+            }
         );
         buttons.push(...wheatBtn);
         yOffset += 30;
@@ -45,7 +50,12 @@ class MenuSystem {
             scene, menuX, menuY + yOffset,
             `Woodcutter's Hut (${hutCost.food}f,${hutCost.wood}w)`,
             canBuildHut,
-            () => BuildingSystem.buildBuilding(scene, 'woodcuttersHut')
+            () => {
+                if (scene.buildingSystem) {
+                    scene.buildingSystem.placeBuilding(gameState.selectedPlot, 'woodcuttersHut');
+                }
+                this.hideBuildMenu(scene);
+            }
         );
         buttons.push(...hutBtn);
         yOffset += 30;
@@ -57,7 +67,12 @@ class MenuSystem {
             scene, menuX, menuY + yOffset,
             `Shelter (${shelterCost.wood}w)`,
             canBuildShelter,
-            () => BuildingSystem.buildBuilding(scene, 'shelter')
+            () => {
+                if (scene.buildingSystem) {
+                    scene.buildingSystem.placeBuilding(gameState.selectedPlot, 'shelter');
+                }
+                this.hideBuildMenu(scene);
+            }
         );
         buttons.push(...shelterBtn);
         yOffset += 30;
@@ -298,7 +313,10 @@ class MenuSystem {
         // Increase next plot cost
         gameState.nextPlotCost = Math.floor(gameState.nextPlotCost * 2);
         
-        UIElements.updateUI();
+        // Update UI through scene
+        if (scene.updateUI) {
+            scene.updateUI();
+        }
         this.hideBuildMenu(scene);
     }
 
@@ -324,8 +342,15 @@ class MenuSystem {
                 break;
         }
         
-        UIElements.updateUI();
+        // Update UI through scene
+        if (scene.updateUI) {
+            scene.updateUI();
+        }
         this.hideUpgradeMenu(scene);
-        scene.recreatePlotVisual(plotIndex);
+        
+        // Update plot visual if method exists
+        if (scene.updatePlotVisual) {
+            scene.updatePlotVisual(plotIndex);
+        }
     }
 }
