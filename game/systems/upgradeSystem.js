@@ -1,3 +1,4 @@
+// Unified upgrade system for managing building improvements
 class UpgradeSystem {
     static getSpeedUpgradeCost(buildingId, currentLevel) {
         // Exponential cost scaling
@@ -5,16 +6,31 @@ class UpgradeSystem {
     }
     
     static getOutputUpgradeCost(buildingId, currentLevel) {
-        // Exponential cost scaling
+        // Exponential cost scaling  
         return Math.floor(15 * Math.pow(1.5, currentLevel));
     }
     
     static applyUpgrades(plot) {
-        // Apply speed multiplier
-        plot.productionSpeed = 1.0 + (plot.speedLevel * 0.5);
+        // Reset to base values
+        plot.productionSpeed = 1.0;
+        plot.harvestMultiplier = 1.0;
         
-        // Apply output multiplier
-        plot.harvestMultiplier = 1.0 + (plot.outputLevel * 0.5);
+        // Apply speed upgrades
+        if (plot.speedLevel > 0) {
+            plot.productionSpeed = Math.pow(1.5, plot.speedLevel);
+        }
+        
+        // Apply output upgrades
+        if (plot.outputLevel > 0) {
+            plot.harvestMultiplier = Math.pow(1.3, plot.outputLevel);
+        }
+        
+        // Apply evolution bonuses if building has evolved
+        if (plot.evolution > 0) {
+            const evolutionBonus = EvolutionSystem.getEvolutionBonus(plot.evolution);
+            plot.productionSpeed *= evolutionBonus.speedMultiplier;
+            plot.harvestMultiplier *= evolutionBonus.outputMultiplier;
+        }
         
         // Apply automation
         if (plot.hasAutomation) {
@@ -38,9 +54,45 @@ class UpgradeSystem {
         }
         return parts.join(', ');
     }
-}
-// Upgrade system for managing building improvements
-class BuildingUpgradeSystem {
+    
+    static upgradeSpeed(plotIndex) {
+        const plot = gameState.plots[plotIndex];
+        if (!plot || !plot.building) return false;
+        
+        const cost = this.getSpeedUpgradeCost(plot.building, plot.speedLevel);
+        
+        // Check if player can afford upgrade (costs gold)
+        if (gameState.resources.gold < cost) return false;
+        
+        // Spend gold and upgrade
+        gameState.resources.gold -= cost;
+        plot.speedLevel++;
+        
+        // Reapply all upgrades
+        this.applyUpgrades(plot);
+        
+        return true;
+    }
+    
+    static upgradeOutput(plotIndex) {
+        const plot = gameState.plots[plotIndex];
+        if (!plot || !plot.building) return false;
+        
+        const cost = this.getOutputUpgradeCost(plot.building, plot.outputLevel);
+        
+        // Check if player can afford upgrade (costs gold)
+        if (gameState.resources.gold < cost) return false;
+        
+        // Spend gold and upgrade
+        gameState.resources.gold -= cost;
+        plot.outputLevel++;
+        
+        // Reapply all upgrades
+        this.applyUpgrades(plot);
+        
+        return true;
+    }
+    
     static purchaseUpgrade(plotIndex, upgradeType) {
         const plot = gameState.plots[plotIndex];
         if (!plot.building || !plot.unlocked) return false;
@@ -53,8 +105,6 @@ class BuildingUpgradeSystem {
         
         // Check if already has upgrade (for single-purchase upgrades)
         if (upgradeType === 'autoHarvest' && plot.autoHarvest) return false;
-        if (upgradeType === 'speedBoost' && plot.productionSpeed >= 2.0) return false;
-        if (upgradeType === 'outputMultiplier' && plot.harvestMultiplier >= 2.0) return false;
         
         // Purchase upgrade
         gameState.resources.population -= upgrade.cost;
@@ -63,21 +113,24 @@ class BuildingUpgradeSystem {
         switch (upgradeType) {
             case 'autoHarvest':
                 plot.autoHarvest = true;
+                plot.hasAutomation = true;
                 break;
             case 'speedBoost':
-                plot.productionSpeed = upgrade.multiplier;
-                // Adjust current harvest time if in progress
-                if (plot.nextHarvest > Date.now()) {
-                    const timeRemaining = plot.nextHarvest - Date.now();
-                    plot.nextHarvest = Date.now() + Math.floor(timeRemaining / upgrade.multiplier);
-                }
+                plot.speedLevel++;
                 break;
             case 'outputMultiplier':
-                plot.harvestMultiplier = upgrade.multiplier;
+                plot.outputLevel++;
                 break;
         }
         
+        // Reapply all upgrades
+        this.applyUpgrades(plot);
+        
         return true;
+    }
+    
+    static applyPopulationUpgrade(plotIndex, upgradeType) {
+        return this.purchaseUpgrade(plotIndex, upgradeType);
     }
     
     static getAvailableUpgrades(plotIndex) {
@@ -96,22 +149,18 @@ class BuildingUpgradeSystem {
         }
         
         // Speed boost upgrade
-        if (plot.productionSpeed < 2.0) {
-            available.push({
-                type: 'speedBoost',
-                ...populationUpgrades.speedBoost,
-                canAfford: gameState.resources.population >= populationUpgrades.speedBoost.cost
-            });
-        }
+        available.push({
+            type: 'speedBoost',
+            ...populationUpgrades.speedBoost,
+            canAfford: gameState.resources.population >= populationUpgrades.speedBoost.cost
+        });
         
         // Output multiplier upgrade
-        if (plot.harvestMultiplier < 2.0) {
-            available.push({
-                type: 'outputMultiplier',
-                ...populationUpgrades.outputMultiplier,
-                canAfford: gameState.resources.population >= populationUpgrades.outputMultiplier.cost
-            });
-        }
+        available.push({
+            type: 'outputMultiplier',
+            ...populationUpgrades.outputMultiplier,
+            canAfford: gameState.resources.population >= populationUpgrades.outputMultiplier.cost
+        });
         
         return available;
     }
@@ -119,7 +168,25 @@ class BuildingUpgradeSystem {
     static hasUpgrades(plotIndex) {
         return this.getAvailableUpgrades(plotIndex).length > 0;
     }
-
-
-
+    
+    static canAffordPopulationUpgrade(upgradeType) {
+        const upgrade = populationUpgrades[upgradeType];
+        return upgrade && gameState.resources.population >= upgrade.cost;
+    }
+    
+    static canAffordSpeedUpgrade(plotIndex) {
+        const plot = gameState.plots[plotIndex];
+        if (!plot || !plot.building) return false;
+        
+        const cost = this.getSpeedUpgradeCost(plot.building, plot.speedLevel);
+        return gameState.resources.gold >= cost;
+    }
+    
+    static canAffordOutputUpgrade(plotIndex) {
+        const plot = gameState.plots[plotIndex];
+        if (!plot || !plot.building) return false;
+        
+        const cost = this.getOutputUpgradeCost(plot.building, plot.outputLevel);
+        return gameState.resources.gold >= cost;
+    }
 }
