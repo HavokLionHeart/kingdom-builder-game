@@ -46,8 +46,8 @@ class BuildingSystem {
         }
         
         // Update UI if available
-        if (this.scene && this.scene.uiElements) {
-            this.scene.uiElements.updateUI();
+        if (this.scene && this.scene.uiInstance) {
+            this.scene.uiInstance.updateUI();
         }
         
         // Hide build menu if available
@@ -108,8 +108,8 @@ class BuildingSystem {
         }
         
         // Update UI if available
-        if (this.scene && this.scene.uiElements) {
-            this.scene.uiElements.updateUI();
+        if (this.scene && this.scene.uiInstance) {
+            this.scene.uiInstance.updateUI();
         }
         
         // Auto-save if SaveSystem exists

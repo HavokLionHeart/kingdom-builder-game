@@ -166,9 +166,8 @@ A web-based medieval kingdom building game built with Phaser 3. Players manage r
 3. **Building evolution chains** - upgrade paths for existing buildings
 4. **Wood resource integration** - Tier 2 building requirements
 
-### Known Limitations
-- Food and Gold need to be switched out in the code where they have been changed in this update
-- Food and Wood resources currently unused
+### Known Limitations- 
+- Wood resource currently unused
 - Only 2 building types available
 - No automation options
 - Limited late-game content

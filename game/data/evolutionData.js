@@ -48,10 +48,10 @@ class EvolutionSystem {
         const cost = this.getEvolutionCost(buildingType, evolutionLevel);
         
         // Check if player can afford evolution
-        if (!resourceSystem.canAfford(cost)) return false;
-        
+        if (!ResourceSystem.canAfford(cost)) return false;
+
         // Spend resources and evolve
-        resourceSystem.spendResources(cost);
+        ResourceSystem.spendResources(cost);
         plot.evolution = evolutionLevel + 1;
         
         return true;

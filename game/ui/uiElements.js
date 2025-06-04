@@ -136,3 +136,26 @@ updatePlotInfo() {
     }
 }
 }
+
+// Static instance for backward compatibility
+UIElements.instance = null;
+UIElements.elements = {};
+
+// Static methods for backward compatibility
+UIElements.init = function(scene) {
+    UIElements.instance = new UIElements(scene);
+    UIElements.elements = UIElements.instance.createUI();
+    return UIElements.elements;
+};
+
+UIElements.updateUI = function() {
+    if (UIElements.instance) {
+        UIElements.instance.updateUI();
+    }
+};
+
+UIElements.setResourceSystem = function(resourceSystem) {
+    if (UIElements.instance) {
+        UIElements.instance.setResourceSystem(resourceSystem);
+    }
+};

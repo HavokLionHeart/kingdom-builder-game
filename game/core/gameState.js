@@ -40,7 +40,7 @@ const gameState = {
     }
 };
 
-// Population-based upgrades
+// Population-based upgrades - defined here to avoid dependency issues
 const populationUpgrades = {
     autoHarvest: {
         name: 'Auto-Harvest',
@@ -58,6 +58,9 @@ const populationUpgrades = {
         description: 'Doubles harvest output'
     }
 };
+
+// Alias for consistency with upgradeData.js
+const populationUpgradeCosts = populationUpgrades;
 
 // Evolution tier colors and names
 const evolutionTiers = {
@@ -121,3 +124,9 @@ const buildingTypes = {
 
 // Initialize game state
 gameState.init();
+
+// Expose to global scope for main.js immediately
+window.gameState = gameState;
+window.buildingTypes = buildingTypes;
+window.populationUpgradeCosts = populationUpgradeCosts;
+window.populationUpgrades = populationUpgrades;

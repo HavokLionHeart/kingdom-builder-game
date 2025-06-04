@@ -10,13 +10,13 @@ class ResourceSystem {
         if (gameState.resources.food >= foodNeeded) {
             gameState.resources.food -= foodNeeded;
             gameState.isStarving = false;
-            if (this.scene && this.scene.uiElements) {
-                this.scene.uiElements.updateStarvationWarning('');
+            if (this.scene && this.scene.uiInstance) {
+                this.scene.uiInstance.updateStarvationWarning('');
             }
         } else {
             gameState.isStarving = true;
-            if (this.scene && this.scene.uiElements) {
-                this.scene.uiElements.updateStarvationWarning('⚠️ STARVING! Production halved until fed!');
+            if (this.scene && this.scene.uiInstance) {
+                this.scene.uiInstance.updateStarvationWarning('⚠️ STARVING! Production halved until fed!');
             }
                 
             // Apply starvation penalty to all buildings
@@ -33,8 +33,8 @@ class ResourceSystem {
         }
         
         gameState.lastFoodConsumption = Date.now();
-        if (this.scene && this.scene.uiElements) {
-            this.scene.uiElements.updateUI();
+        if (this.scene && this.scene.uiInstance) {
+            this.scene.uiInstance.updateUI();
         }
     }
 
@@ -158,8 +158,8 @@ class ResourceSystem {
         // Increase next plot cost
         gameState.nextPlotCost = Math.floor(gameState.nextPlotCost * 2);
         
-        if (this.scene && this.scene.uiElements) {
-            this.scene.uiElements.updateUI();
+        if (this.scene && this.scene.uiInstance) {
+            this.scene.uiInstance.updateUI();
         }
         if (this.scene && this.scene.menuSystem) {
             this.scene.menuSystem.hideBuildMenu();
@@ -168,7 +168,7 @@ class ResourceSystem {
 
     purchaseUpgrade(plotIndex, upgradeType) {
         const plot = gameState.plots[plotIndex];
-        const upgrade = populationUpgrades[upgradeType];
+        const upgrade = populationUpgradeCosts[upgradeType];
         
         if (gameState.resources.population < upgrade.cost) return;
         
@@ -188,8 +188,8 @@ class ResourceSystem {
                 break;
         }
         
-        if (this.scene && this.scene.uiElements) {
-            this.scene.uiElements.updateUI();
+        if (this.scene && this.scene.uiInstance) {
+            this.scene.uiInstance.updateUI();
         }
         if (this.scene && this.scene.menuSystem) {
             this.scene.menuSystem.hideUpgradeMenu();
@@ -227,6 +227,13 @@ class ResourceSystem {
                 gameState.resources[resource] += resources[resource];
             }
         }
+    }
+
+    getStarvationStatus() {
+        if (gameState.isStarving) {
+            return '⚠️ STARVING! Production halved until fed!';
+        }
+        return '';
     }
 
     static checkFoodConsumption() {

@@ -29,13 +29,17 @@ class GameScene extends Phaser.Scene {
         this.saveSystem = new SaveSystem(this);
         
         // Load save data
-        this.saveSystem.load();
+        this.saveSystem.loadGame();
         
         this.createGrid();
         
         // Initialize UI system
         UIElements.init(this);
         this.uiElements = UIElements.elements;
+        this.uiInstance = UIElements.instance;
+
+        // Connect ResourceSystem to UIElements
+        this.uiInstance.setResourceSystem(this.resourceSystem);
         
         this.setupInput();
         
@@ -303,8 +307,8 @@ class GameScene extends Phaser.Scene {
 
     updateBuildings() {
         // Delegate harvest timing updates to BuildingSystem
-        this.buildingSystem.updateHarvestTimes();
-        
+        this.buildingSystem.updateBuildings();
+
         // Update visual elements
         this.updateBuildingVisuals();
     }
@@ -375,4 +379,16 @@ class GameScene extends Phaser.Scene {
             }
         });
     }
+
+    // Method for external systems to update UI
+    updateUI() {
+        if (this.uiInstance) {
+            this.uiInstance.updateUI();
+        }
+    }
+}
+
+// Add GameScene to the config after it's defined
+if (typeof config !== 'undefined') {
+    config.scene = [GameScene];
 }

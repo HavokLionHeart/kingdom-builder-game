@@ -97,7 +97,7 @@ class UpgradeSystem {
         const plot = gameState.plots[plotIndex];
         if (!plot.building || !plot.unlocked) return false;
         
-        const upgrade = populationUpgrades[upgradeType];
+        const upgrade = populationUpgradeCosts[upgradeType];
         if (!upgrade) return false;
         
         // Check if can afford
@@ -143,23 +143,23 @@ class UpgradeSystem {
         if (!plot.autoHarvest) {
             available.push({
                 type: 'autoHarvest',
-                ...populationUpgrades.autoHarvest,
-                canAfford: gameState.resources.population >= populationUpgrades.autoHarvest.cost
+                ...populationUpgradeCosts.autoHarvest,
+                canAfford: gameState.resources.population >= populationUpgradeCosts.autoHarvest.cost
             });
         }
-        
+
         // Speed boost upgrade
         available.push({
             type: 'speedBoost',
-            ...populationUpgrades.speedBoost,
-            canAfford: gameState.resources.population >= populationUpgrades.speedBoost.cost
+            ...populationUpgradeCosts.speedBoost,
+            canAfford: gameState.resources.population >= populationUpgradeCosts.speedBoost.cost
         });
-        
+
         // Output multiplier upgrade
         available.push({
             type: 'outputMultiplier',
-            ...populationUpgrades.outputMultiplier,
-            canAfford: gameState.resources.population >= populationUpgrades.outputMultiplier.cost
+            ...populationUpgradeCosts.outputMultiplier,
+            canAfford: gameState.resources.population >= populationUpgradeCosts.outputMultiplier.cost
         });
         
         return available;
@@ -170,7 +170,7 @@ class UpgradeSystem {
     }
     
     static canAffordPopulationUpgrade(upgradeType) {
-        const upgrade = populationUpgrades[upgradeType];
+        const upgrade = populationUpgradeCosts[upgradeType];
         return upgrade && gameState.resources.population >= upgrade.cost;
     }
     

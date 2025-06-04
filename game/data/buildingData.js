@@ -24,12 +24,30 @@ const buildingExtensions = {
     }
 };
 
-// Apply extensions to existing buildingTypes
-Object.keys(buildingExtensions).forEach(buildingKey => {
-    if (buildingTypes[buildingKey]) {
-        Object.assign(buildingTypes[buildingKey], buildingExtensions[buildingKey]);
+// Function to apply extensions when buildingTypes is ready
+function applyBuildingExtensions() {
+    if (typeof buildingTypes !== 'undefined') {
+        Object.keys(buildingExtensions).forEach(buildingKey => {
+            if (buildingTypes[buildingKey]) {
+                Object.assign(buildingTypes[buildingKey], buildingExtensions[buildingKey]);
+            }
+        });
+        console.log('Building extensions applied successfully');
+        return true;
     }
-});
+    return false;
+}
+
+// Try to apply immediately, or wait for DOM ready
+if (!applyBuildingExtensions()) {
+    // If buildingTypes isn't ready, wait for DOM to be ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', applyBuildingExtensions);
+    } else {
+        // Try again after a short delay
+        setTimeout(applyBuildingExtensions, 10);
+    }
+}
 
 // Additional building type validation
 const validateBuildingTypes = () => {

@@ -1,24 +1,7 @@
 // Upgrade data and configuration - NO CLASS DEFINITIONS
 // This file contains only data, the UpgradeSystem class is in upgradeSystem.js
 
-// Population-based upgrade costs and descriptions
-const populationUpgradeCosts = {
-    autoHarvest: {
-        name: 'Auto-Harvest',
-        cost: 3,
-        description: 'Building harvests automatically'
-    },
-    speedBoost: {
-        name: 'Speed Boost', 
-        cost: 2,
-        description: 'Increases production speed'
-    },
-    outputMultiplier: {
-        name: 'Output Boost',
-        cost: 5,
-        description: 'Increases harvest output'
-    }
-};
+// Note: populationUpgradeCosts is now defined in gameState.js to avoid dependency issues
 
 // Gold-based upgrade cost formulas
 const upgradeFormulas = {

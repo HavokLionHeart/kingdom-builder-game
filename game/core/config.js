@@ -59,3 +59,6 @@ const GAME_CONSTANTS = {
         OUTPUT_MULT: 0xFF8000
     }
 };
+
+// Expose to global scope for main.js
+window.config = config;

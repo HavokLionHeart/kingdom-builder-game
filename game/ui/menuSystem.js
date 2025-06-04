@@ -124,7 +124,7 @@ class MenuSystem {
         
         // Auto-harvest upgrade
         if (!plot.autoHarvest) {
-            const autoUpgrade = populationUpgrades.autoHarvest;
+            const autoUpgrade = populationUpgradeCosts.autoHarvest;
             const canAfford = gameState.resources.population >= autoUpgrade.cost;
             const autoBtn = this.createMenuButton(
                 scene, menuX, menuY + yOffset,
@@ -135,10 +135,10 @@ class MenuSystem {
             buttons.push(...autoBtn);
             yOffset += 25;
         }
-        
+
         // Speed boost upgrade
         if (plot.productionSpeed < 2.0) {
-            const speedUpgrade = populationUpgrades.speedBoost;
+            const speedUpgrade = populationUpgradeCosts.speedBoost;
             const canAfford = gameState.resources.population >= speedUpgrade.cost;
             const speedBtn = this.createMenuButton(
                 scene, menuX, menuY + yOffset,
@@ -149,10 +149,10 @@ class MenuSystem {
             buttons.push(...speedBtn);
             yOffset += 25;
         }
-        
+
         // Output multiplier upgrade
         if (plot.harvestMultiplier < 2.0) {
-            const multUpgrade = populationUpgrades.outputMultiplier;
+            const multUpgrade = populationUpgradeCosts.outputMultiplier;
             const canAfford = gameState.resources.population >= multUpgrade.cost;
             const multBtn = this.createMenuButton(
                 scene, menuX, menuY + yOffset,
@@ -322,7 +322,7 @@ class MenuSystem {
 
     static purchaseUpgrade(scene, plotIndex, upgradeType) {
         const plot = gameState.plots[plotIndex];
-        const upgrade = populationUpgrades[upgradeType];
+        const upgrade = populationUpgradeCosts[upgradeType];
         
         if (gameState.resources.population < upgrade.cost) return;
         
