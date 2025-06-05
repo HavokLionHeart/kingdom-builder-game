@@ -11,7 +11,7 @@ const buildingExtensions = {
         maxLevel: 10
     },
     woodcuttersHut: {
-        category: 'resource',
+        category: 'wood',
         tier: 'basic', 
         unlockLevel: 1,
         maxLevel: 10

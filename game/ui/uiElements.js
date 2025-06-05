@@ -68,14 +68,14 @@ class UIElements {
             fontFamily: 'Courier New'
         });
             // Plot unlock cost display
-    this.elements.plotCostText = this.scene.add.text(20, uiY + 150, `Next Plot Cost: ${gameState.nextPlotCost} gold`, {
+    this.elements.plotCostText = this.scene.add.text(20, uiY + 125, `Next Plot Cost: ${gameState.nextPlotCost} gold`, {
         fontSize: '14px',
         fill: '#FFD700',
         fontFamily: 'Courier New'
     });
     
     // Selected plot info
-    this.elements.plotInfoText = this.scene.add.text(20, uiY + 170, '', {
+    this.elements.plotInfoText = this.scene.add.text(20, uiY + 150, '', {
         fontSize: '14px',
         fill: '#FFFFFF',
         fontFamily: 'Courier New'

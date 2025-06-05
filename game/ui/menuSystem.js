@@ -11,11 +11,11 @@ class MenuSystem {
         const menuY = plot.base.y - 80;
         
         // Menu background
-        const menuBg = scene.add.rectangle(menuX, menuY, 160, 120, 0x2c1810, 0.9);
+        const menuBg = scene.add.rectangle(menuX, menuY, 208, 210, 0x2c1810, 0.9);
         menuBg.setStrokeStyle(2, 0x8b4513);
         
         // Title
-        const title = scene.add.text(menuX, menuY - 75, 'Build:', {
+        const title = scene.add.text(menuX, menuY - 95, 'Build:', {
             fontSize: '14px',
             fill: '#D4B896',
             fontFamily: 'Courier New',
@@ -35,7 +35,7 @@ class MenuSystem {
             canBuildWheat,
             () => {
                 if (scene.buildingSystem) {
-                    scene.buildingSystem.placeBuilding(gameState.selectedPlot, 'wheatField');
+                    scene.buildingSystem.buildBuilding(gameState.selectedPlot, 'wheatField');
                 }
                 this.hideBuildMenu(scene);
             }
@@ -52,7 +52,7 @@ class MenuSystem {
             canBuildHut,
             () => {
                 if (scene.buildingSystem) {
-                    scene.buildingSystem.placeBuilding(gameState.selectedPlot, 'woodcuttersHut');
+                    scene.buildingSystem.buildBuilding(gameState.selectedPlot, 'woodcuttersHut');
                 }
                 this.hideBuildMenu(scene);
             }
@@ -69,7 +69,7 @@ class MenuSystem {
             canBuildShelter,
             () => {
                 if (scene.buildingSystem) {
-                    scene.buildingSystem.placeBuilding(gameState.selectedPlot, 'shelter');
+                    scene.buildingSystem.buildBuilding(gameState.selectedPlot, 'shelter');
                 }
                 this.hideBuildMenu(scene);
             }
@@ -108,7 +108,7 @@ class MenuSystem {
         const menuY = plotSprite.base.y - 80;
         
         // Menu background
-        const menuBg = scene.add.rectangle(menuX, menuY, 200, 160, 0x2c1810, 0.9);
+        const menuBg = scene.add.rectangle(menuX, menuY, 220, 160, 0x2c1810, 0.9);
         menuBg.setStrokeStyle(2, 0x8b4513);
         
         // Title
@@ -192,7 +192,7 @@ class MenuSystem {
         const menuY = plot.base.y;
         
         // Menu background
-        const menuBg = scene.add.rectangle(menuX, menuY, 160, 80, 0x2c1810, 0.9);
+        const menuBg = scene.add.rectangle(menuX, menuY, 200, 80, 0x2c1810, 0.9);
         menuBg.setStrokeStyle(2, 0x8b4513);
         
         // Title
@@ -232,7 +232,7 @@ class MenuSystem {
     }
 
     static createMenuButton(scene, x, y, text, enabled, callback) {
-        const bg = scene.add.rectangle(x, y, 140, 20, enabled ? 0x654321 : 0x444444);
+        const bg = scene.add.rectangle(x, y, 180, 20, enabled ? 0x654321 : 0x444444);
         bg.setStrokeStyle(1, enabled ? 0x8b4513 : 0x666666);
         bg.setInteractive();
         
