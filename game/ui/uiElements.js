@@ -80,6 +80,17 @@ class UIElements {
         fill: '#FFFFFF',
         fontFamily: 'Courier New'
     });
+
+    // Mobile instruction text
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    if (isMobile) {
+        this.elements.mobileInstructions = this.scene.add.text(20, uiY + 180, 'Tap to build/harvest • Hold to upgrade', {
+            fontSize: '10px',
+            fill: '#888888',
+            fontFamily: 'Courier New'
+        });
+    }
+
         return this.elements;
     }
 

@@ -243,9 +243,24 @@ class MenuSystem {
         }).setOrigin(0.5);
         
         if (enabled) {
-            bg.on('pointerdown', callback);
-            bg.on('pointerover', () => bg.setFillStyle(0x8b4513));
+            // Use pointerup for better mobile responsiveness
+            bg.on('pointerup', (pointer, localX, localY, event) => {
+                // Prevent event if it was a drag/swipe
+                if (pointer.getDistance() < 10) {
+                    callback();
+                }
+            });
+
+            // Visual feedback for touch
+            bg.on('pointerdown', () => bg.setFillStyle(0x8b4513));
+            bg.on('pointerup', () => bg.setFillStyle(0x654321));
             bg.on('pointerout', () => bg.setFillStyle(0x654321));
+            bg.on('pointerover', () => {
+                // Only show hover on non-touch devices
+                if (!pointer || !pointer.isDown) {
+                    bg.setFillStyle(0x8b4513);
+                }
+            });
         }
         
         return [bg, label];

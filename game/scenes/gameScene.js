@@ -143,23 +143,23 @@ class GameScene extends Phaser.Scene {
             upgradeIndicators: []
         };
 
-        // Click handler
+        // Click handler with mobile support
         base.on('pointerdown', (pointer, localX, localY, event) => {
-            if (event.button === 2) { // Right click for upgrades
-                MenuSystem.showUpgradeMenu(this, plotIndex);
-            } else {
-                this.handlePlotClick(plotIndex);
-            }
+            this.handlePointerDown(pointer, plotIndex, event);
+        });
+
+        base.on('pointerup', (pointer) => {
+            this.handlePointerUp(pointer, plotIndex);
         });
         
         if (buildingSprite) {
             buildingSprite.setInteractive();
             buildingSprite.on('pointerdown', (pointer, localX, localY, event) => {
-                if (event.button === 2) { // Right click for upgrades
-                    MenuSystem.showUpgradeMenu(this, plotIndex);
-                } else {
-                    this.handlePlotClick(plotIndex);
-                }
+                this.handlePointerDown(pointer, plotIndex, event);
+            });
+
+            buildingSprite.on('pointerup', (pointer) => {
+                this.handlePointerUp(pointer, plotIndex);
             });
         }
     }
@@ -175,11 +175,65 @@ class GameScene extends Phaser.Scene {
 
         // Enable right-click context menu prevention
         this.input.mouse.disableContextMenu();
+
+        // Mobile-specific touch optimizations
+        this.input.addPointer(2); // Support multi-touch
+
+        // Track touch/hold for mobile right-click simulation
+        this.touchHoldTimer = null;
+        this.touchHoldDuration = 500; // 500ms hold for "right-click"
+        this.isTouchHolding = false;
+    }
+
+    handlePointerDown(pointer, plotIndex, event) {
+        // Check for right-click on desktop
+        if (event && event.button === 2) {
+            MenuSystem.showUpgradeMenu(this, plotIndex);
+            return;
+        }
+
+        // For touch devices, start hold timer for upgrade menu
+        if (pointer.isDown && !this.isTouchHolding) {
+            this.isTouchHolding = true;
+            this.currentTouchPlot = plotIndex;
+
+            // Add visual feedback for touch hold
+            const plot = gameState.plots[plotIndex];
+            if (plot.building) {
+                this.showTouchHoldIndicator(plotIndex);
+            }
+
+            this.touchHoldTimer = this.time.delayedCall(this.touchHoldDuration, () => {
+                if (this.isTouchHolding && this.currentTouchPlot === plotIndex) {
+                    // Show upgrade menu on long press
+                    MenuSystem.showUpgradeMenu(this, plotIndex);
+                    this.isTouchHolding = false;
+                    this.hideTouchHoldIndicator();
+                }
+            });
+        }
+    }
+
+    handlePointerUp(pointer, plotIndex) {
+        // Cancel hold timer if touch is released early
+        if (this.touchHoldTimer) {
+            this.touchHoldTimer.remove();
+            this.touchHoldTimer = null;
+        }
+
+        // Hide touch hold indicator
+        this.hideTouchHoldIndicator();
+
+        // If it was a short tap (not a hold), handle normal click
+        if (this.isTouchHolding && this.currentTouchPlot === plotIndex) {
+            this.isTouchHolding = false;
+            this.handlePlotClick(plotIndex);
+        }
     }
 
     handlePlotClick(plotIndex) {
         const plot = gameState.plots[plotIndex];
-        
+
         if (!plot.unlocked) {
             MenuSystem.showBuyPlotMenu(this, plotIndex);
         } else if (plot.building) {
@@ -235,11 +289,11 @@ class GameScene extends Phaser.Scene {
             
             // Add click handler to building sprite
             gridSprite.building.on('pointerdown', (pointer, localX, localY, event) => {
-                if (event.button === 2) { // Right click for upgrades
-                    MenuSystem.showUpgradeMenu(this, plotIndex);
-                } else {
-                    this.handlePlotClick(plotIndex);
-                }
+                this.handlePointerDown(pointer, plotIndex, event);
+            });
+
+            gridSprite.building.on('pointerup', (pointer) => {
+                this.handlePointerUp(pointer, plotIndex);
             });
             
             // Create upgrade indicators array
@@ -384,6 +438,39 @@ class GameScene extends Phaser.Scene {
     updateUI() {
         if (this.uiInstance) {
             this.uiInstance.updateUI();
+        }
+    }
+
+    // Touch hold indicator for mobile upgrade access
+    showTouchHoldIndicator(plotIndex) {
+        this.hideTouchHoldIndicator(); // Remove any existing indicator
+
+        const gridSprite = this.gridSprites[plotIndex];
+        if (gridSprite && gridSprite.base) {
+            this.touchHoldIndicator = this.add.circle(
+                gridSprite.base.x,
+                gridSprite.base.y,
+                40,
+                0xFFFFFF,
+                0.3
+            );
+
+            // Animate the indicator
+            this.tweens.add({
+                targets: this.touchHoldIndicator,
+                scaleX: 1.2,
+                scaleY: 1.2,
+                alpha: 0.6,
+                duration: this.touchHoldDuration,
+                ease: 'Power2'
+            });
+        }
+    }
+
+    hideTouchHoldIndicator() {
+        if (this.touchHoldIndicator) {
+            this.touchHoldIndicator.destroy();
+            this.touchHoldIndicator = null;
         }
     }
 }

@@ -7,7 +7,20 @@ const config = {
     scene: [], // Empty array - GameScene will be added when it's defined
     scale: {
         mode: Phaser.Scale.FIT,
-        autoCenter: Phaser.Scale.CENTER_BOTH
+        autoCenter: Phaser.Scale.CENTER_BOTH,
+        min: {
+            width: 320,
+            height: 240
+        },
+        max: {
+            width: 1920,
+            height: 1080
+        }
+    },
+    input: {
+        activePointers: 3, // Support multi-touch
+        smoothFactor: 0.2,
+        targetFPS: 60
     },
     physics: {
         default: 'arcade',
