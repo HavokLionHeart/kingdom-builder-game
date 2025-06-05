@@ -23,11 +23,15 @@ class SaveSystem {
                 harvestMultiplier: plot.harvestMultiplier,
                 speedLevel: plot.speedLevel,
                 outputLevel: plot.outputLevel,
-                hasAutomation: plot.hasAutomation
+                hasAutomation: plot.hasAutomation,
+                placementTime: plot.placementTime,
+                adjacencyBonus: plot.adjacencyBonus
             })),
             nextPlotCost: gameState.nextPlotCost,
             isStarving: gameState.isStarving,
-            lastFoodConsumption: gameState.lastFoodConsumption
+            lastFoodConsumption: gameState.lastFoodConsumption,
+            eventSystem: this.scene && this.scene.eventSystem ? this.scene.eventSystem.getSaveData() : null,
+            demolitionSystem: this.scene && this.scene.demolitionSystem ? this.scene.demolitionSystem.getSaveData() : null
         };
         
         try {
@@ -97,7 +101,17 @@ class SaveSystem {
                     this.processOfflineFoodConsumption(offlineTime);
                 }
             }
-            
+
+            // Restore event system state
+            if (data.eventSystem && this.scene && this.scene.eventSystem) {
+                this.scene.eventSystem.loadSaveData(data.eventSystem);
+            }
+
+            // Restore demolition system state
+            if (data.demolitionSystem && this.scene && this.scene.demolitionSystem) {
+                this.scene.demolitionSystem.loadSaveData(data.demolitionSystem);
+            }
+
             console.log(`Game loaded successfully. Offline time: ${Math.floor(offlineTime / 1000)}s`);
             return true;
             

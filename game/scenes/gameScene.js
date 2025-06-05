@@ -19,20 +19,35 @@ class GameScene extends Phaser.Scene {
 
     create() {
         this.cameras.main.setBackgroundColor('#4a6741');
-        
+
         // Create textures using graphics
         this.createTextures();
-        
+
         // Initialize system instances
         this.buildingSystem = new BuildingSystem(this);
         this.resourceSystem = new ResourceSystem(this);
         this.saveSystem = new SaveSystem(this);
-        
+        this.eventSystem = new EventSystem(this);
+        this.demolitionSystem = new DemolitionSystem(this);
+
         // Load save data
         this.saveSystem.loadGame();
-        
+
+        // Initialize building ages and bonuses
+        this.demolitionSystem.initializeBuildingAges();
+
+        // Setup camera system for zoom/pan
+        this.setupCameraControls();
+
+        // Create separate containers for world and UI
+        this.worldContainer = this.add.container(0, 0);
+        this.uiContainer = this.add.container(0, 0);
+
+        // Set UI container to ignore camera transforms
+        this.uiContainer.setScrollFactor(0);
+
         this.createGrid();
-        
+
         // Initialize UI system
         UIElements.init(this);
         this.uiElements = UIElements.elements;
@@ -40,7 +55,7 @@ class GameScene extends Phaser.Scene {
 
         // Connect ResourceSystem to UIElements
         this.uiInstance.setResourceSystem(this.resourceSystem);
-        
+
         this.setupInput();
         
         // Auto-save every 30 seconds
@@ -77,9 +92,28 @@ class GameScene extends Phaser.Scene {
         graphics.destroy();
     }
 
+    setupCameraControls() {
+        // Camera control variables
+        this.cameraZoom = 1;
+        this.minZoom = 0.5;
+        this.maxZoom = 2.0;
+        this.isDragging = false;
+        this.lastPanPoint = null;
+        this.isPinching = false;
+        this.lastPinchDistance = 0;
+
+        // Set initial camera bounds
+        this.cameras.main.setBounds(-400, -300, 1600, 1200);
+        this.cameras.main.setZoom(this.cameraZoom);
+
+        // Center camera on the grid initially
+        this.cameras.main.centerOn(400, 300);
+    }
+
     createGrid() {
-        const centerX = this.cameras.main.width / 2;
-        const centerY = this.cameras.main.height / 2;
+        // Use fixed world coordinates instead of camera-relative
+        const centerX = 400; // Fixed world center
+        const centerY = 300; // Fixed world center
         const tileSize = 80;
         const gridWidth = 3 * tileSize;
         const gridHeight = 3 * tileSize;
@@ -91,7 +125,7 @@ class GameScene extends Phaser.Scene {
                 const plotIndex = row * 3 + col;
                 const x = startX + col * tileSize;
                 const y = startY + row * tileSize;
-                
+
                 this.createPlot(x, y, plotIndex);
             }
         }
@@ -131,6 +165,13 @@ class GameScene extends Phaser.Scene {
             fill: '#ffffff',
             fontFamily: 'Courier New'
         });
+
+        // Add all plot elements to world container
+        const plotElements = [base, plotText];
+        if (buildingSprite) {
+            plotElements.push(buildingSprite);
+        }
+        this.worldContainer.add(plotElements);
 
         // Store references
         this.gridSprites[plotIndex] = {
@@ -183,6 +224,9 @@ class GameScene extends Phaser.Scene {
         this.touchHoldTimer = null;
         this.touchHoldDuration = 500; // 500ms hold for "right-click"
         this.isTouchHolding = false;
+
+        // Camera control input handlers
+        this.setupCameraInput();
     }
 
     handlePointerDown(pointer, plotIndex, event) {
@@ -192,17 +236,17 @@ class GameScene extends Phaser.Scene {
             return;
         }
 
-        // For touch devices, start hold timer for upgrade menu
-        if (pointer.isDown && !this.isTouchHolding) {
+        const plot = gameState.plots[plotIndex];
+
+        // For buildings, start touch hold timer for upgrade menu
+        if (plot.building && pointer.isDown && !this.isTouchHolding) {
             this.isTouchHolding = true;
             this.currentTouchPlot = plotIndex;
 
             // Add visual feedback for touch hold
-            const plot = gameState.plots[plotIndex];
-            if (plot.building) {
-                this.showTouchHoldIndicator(plotIndex);
-            }
+            this.showTouchHoldIndicator(plotIndex);
 
+            // Start upgrade menu timer (0.5 seconds)
             this.touchHoldTimer = this.time.delayedCall(this.touchHoldDuration, () => {
                 if (this.isTouchHolding && this.currentTouchPlot === plotIndex) {
                     // Show upgrade menu on long press
@@ -229,6 +273,9 @@ class GameScene extends Phaser.Scene {
             this.isTouchHolding = false;
             this.handlePlotClick(plotIndex);
         }
+
+        // Reset touch holding state
+        this.isTouchHolding = false;
     }
 
     handlePlotClick(plotIndex) {
@@ -286,6 +333,7 @@ class GameScene extends Phaser.Scene {
             gridSprite.building = this.add.rectangle(x, y, 48, 48, buildingDef.color);
             gridSprite.building.setStrokeStyle(2, 0x000000);
             gridSprite.building.setInteractive();
+            this.worldContainer.add(gridSprite.building);
             
             // Add click handler to building sprite
             gridSprite.building.on('pointerdown', (pointer, localX, localY, event) => {
@@ -304,20 +352,23 @@ class GameScene extends Phaser.Scene {
                 const autoIcon = this.add.circle(x + 15, y - 15, 4, 0x00FF00);
                 autoIcon.setStrokeStyle(1, 0x000000);
                 gridSprite.upgradeIndicators.push(autoIcon);
+                this.worldContainer.add(autoIcon);
             }
-            
+
             if (plot.productionSpeed > 1.0) {
                 const speedIcon = this.add.circle(x - 15, y - 15, 4, 0x0080FF);
                 speedIcon.setStrokeStyle(1, 0x000000);
                 gridSprite.upgradeIndicators.push(speedIcon);
+                this.worldContainer.add(speedIcon);
             }
-            
+
             if (plot.harvestMultiplier > 1.0) {
                 const multIcon = this.add.circle(x + 15, y + 15, 4, 0xFF8000);
                 multIcon.setStrokeStyle(1, 0x000000);
                 gridSprite.upgradeIndicators.push(multIcon);
+                this.worldContainer.add(multIcon);
             }
-            
+
             // Add building level indicator if above level 1
             if (plot.level > 1) {
                 const levelText = this.add.text(x - 15, y + 15, plot.level.toString(), {
@@ -328,6 +379,7 @@ class GameScene extends Phaser.Scene {
                     padding: { x: 2, y: 1 }
                 }).setOrigin(0.5);
                 gridSprite.upgradeIndicators.push(levelText);
+                this.worldContainer.add(levelText);
             }
         }
     }
@@ -381,12 +433,13 @@ class GameScene extends Phaser.Scene {
                     // Show harvest indicator
                     if (!gridSprite.harvestIndicator) {
                         gridSprite.harvestIndicator = this.add.circle(
-                            gridSprite.base.x, 
-                            gridSprite.base.y, 
-                            35, 
-                            0xFFFF00, 
+                            gridSprite.base.x,
+                            gridSprite.base.y,
+                            35,
+                            0xFFFF00,
                             0.3
                         );
+                        this.worldContainer.add(gridSprite.harvestIndicator);
                     }
                     
                     // Hide progress bar
@@ -403,12 +456,13 @@ class GameScene extends Phaser.Scene {
                     if (!gridSprite.progressBg) {
                         // Create progress bar background
                         gridSprite.progressBg = this.add.rectangle(
-                            gridSprite.base.x, 
-                            gridSprite.base.y + 35, 
-                            50, 6, 
+                            gridSprite.base.x,
+                            gridSprite.base.y + 35,
+                            50, 6,
                             0x333333
                         );
                         gridSprite.progressBg.setStrokeStyle(1, 0x000000);
+                        this.worldContainer.add(gridSprite.progressBg);
                     }
                     
                     if (gridSprite.progressBar) {
@@ -418,11 +472,12 @@ class GameScene extends Phaser.Scene {
                     // Create progress bar fill
                     const barWidth = Math.max(2, 48 * progress);
                     gridSprite.progressBar = this.add.rectangle(
-                        gridSprite.base.x - 24 + barWidth/2, 
-                        gridSprite.base.y + 35, 
-                        barWidth, 4, 
+                        gridSprite.base.x - 24 + barWidth/2,
+                        gridSprite.base.y + 35,
+                        barWidth, 4,
                         0x00FF00
                     );
+                    this.worldContainer.add(gridSprite.progressBar);
                     
                     // Hide harvest indicator while building
                     if (gridSprite.harvestIndicator) {
@@ -454,6 +509,7 @@ class GameScene extends Phaser.Scene {
                 0xFFFFFF,
                 0.3
             );
+            this.worldContainer.add(this.touchHoldIndicator);
 
             // Animate the indicator
             this.tweens.add({
@@ -471,6 +527,95 @@ class GameScene extends Phaser.Scene {
         if (this.touchHoldIndicator) {
             this.touchHoldIndicator.destroy();
             this.touchHoldIndicator = null;
+        }
+    }
+
+    setupCameraInput() {
+        // Mouse wheel zoom
+        this.input.on('wheel', (pointer, gameObjects, deltaX, deltaY, deltaZ) => {
+            this.handleZoom(deltaY > 0 ? -0.1 : 0.1, pointer.worldX, pointer.worldY);
+        });
+
+        // Touch/mouse pan
+        this.input.on('pointerdown', (pointer) => {
+            if (pointer.buttons === 4 || this.input.activePointer.pointersTotal >= 2) {
+                // Middle mouse button or two-finger touch
+                this.isDragging = true;
+                this.lastPanPoint = { x: pointer.x, y: pointer.y };
+            }
+        });
+
+        this.input.on('pointermove', (pointer) => {
+            // Handle panning
+            if (this.isDragging && this.lastPanPoint) {
+                const deltaX = pointer.x - this.lastPanPoint.x;
+                const deltaY = pointer.y - this.lastPanPoint.y;
+
+                this.cameras.main.scrollX -= deltaX / this.cameraZoom;
+                this.cameras.main.scrollY -= deltaY / this.cameraZoom;
+
+                this.lastPanPoint = { x: pointer.x, y: pointer.y };
+            }
+
+            // Handle pinch zoom
+            if (this.input.activePointer.pointersTotal === 2) {
+                const pointer1 = this.input.activePointer;
+                const pointer2 = this.input.pointer2;
+
+                if (pointer1.isDown && pointer2.isDown) {
+                    const distance = Phaser.Math.Distance.Between(
+                        pointer1.x, pointer1.y,
+                        pointer2.x, pointer2.y
+                    );
+
+                    if (this.lastPinchDistance > 0) {
+                        const zoomDelta = (distance - this.lastPinchDistance) * 0.01;
+                        const centerX = (pointer1.x + pointer2.x) / 2;
+                        const centerY = (pointer1.y + pointer2.y) / 2;
+                        this.handleZoom(zoomDelta, centerX, centerY);
+                    }
+
+                    this.lastPinchDistance = distance;
+                    this.isPinching = true;
+                }
+            }
+        });
+
+        this.input.on('pointerup', (pointer) => {
+            if (pointer.buttons === 0) {
+                this.isDragging = false;
+                this.lastPanPoint = null;
+            }
+
+            if (this.input.activePointer.pointersTotal < 2) {
+                this.isPinching = false;
+                this.lastPinchDistance = 0;
+            }
+        });
+    }
+
+    handleZoom(zoomDelta, centerX, centerY) {
+        const newZoom = Phaser.Math.Clamp(
+            this.cameraZoom + zoomDelta,
+            this.minZoom,
+            this.maxZoom
+        );
+
+        if (newZoom !== this.cameraZoom) {
+            // Calculate world position of zoom center
+            const worldX = centerX + this.cameras.main.scrollX;
+            const worldY = centerY + this.cameras.main.scrollY;
+
+            // Update zoom
+            this.cameraZoom = newZoom;
+            this.cameras.main.setZoom(this.cameraZoom);
+
+            // Adjust camera position to zoom towards the center point
+            const newWorldX = centerX + this.cameras.main.scrollX;
+            const newWorldY = centerY + this.cameras.main.scrollY;
+
+            this.cameras.main.scrollX += (worldX - newWorldX);
+            this.cameras.main.scrollY += (worldY - newWorldY);
         }
     }
 }

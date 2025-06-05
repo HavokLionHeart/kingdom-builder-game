@@ -22,6 +22,15 @@ const config = {
         smoothFactor: 0.2,
         targetFPS: 60
     },
+    cameras: {
+        default: {
+            zoom: 1,
+            centerOn: {
+                x: 400,
+                y: 300
+            }
+        }
+    },
     physics: {
         default: 'arcade',
         arcade: {

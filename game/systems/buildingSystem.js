@@ -40,11 +40,16 @@ class BuildingSystem {
         // Set initial harvest time
         this.resetHarvestTimer(plotIndex);
         
+        // Notify demolition system of new building
+        if (this.scene && this.scene.demolitionSystem) {
+            this.scene.demolitionSystem.onBuildingPlaced(plotIndex);
+        }
+
         // Update visual if scene exists
         if (this.scene && this.scene.recreatePlotVisual) {
             this.scene.recreatePlotVisual(plotIndex);
         }
-        
+
         // Update UI if available
         if (this.scene && this.scene.uiInstance) {
             this.scene.uiInstance.updateUI();
@@ -61,14 +66,22 @@ class BuildingSystem {
     resetHarvestTimer(plotIndex) {
         const plot = gameState.plots[plotIndex];
         if (!plot.building) return;
-        
+
         const buildingDef = buildingTypes[plot.building];
         const baseHarvestTime = buildingDef.harvestTime;
-        
+
         // Apply starvation penalty and production speed
         const starvationMultiplier = gameState.isStarving ? 2 : 1;
-        const effectiveHarvestTime = Math.floor(baseHarvestTime * starvationMultiplier / plot.productionSpeed);
-        
+
+        // Apply efficiency bonuses from demolition system
+        let efficiencyBonus = 1.0;
+        if (this.scene && this.scene.demolitionSystem) {
+            const totalBonus = this.scene.demolitionSystem.getTotalEfficiencyBonus(plotIndex);
+            efficiencyBonus = 1.0 + totalBonus; // Convert bonus to multiplier
+        }
+
+        const effectiveHarvestTime = Math.floor(baseHarvestTime * starvationMultiplier / (plot.productionSpeed * efficiencyBonus));
+
         plot.nextHarvest = Date.now() + effectiveHarvestTime;
         plot.harvestReady = false;
     }

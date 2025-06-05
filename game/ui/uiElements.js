@@ -84,11 +84,17 @@ class UIElements {
     // Mobile instruction text
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     if (isMobile) {
-        this.elements.mobileInstructions = this.scene.add.text(20, uiY + 180, 'Tap to build/harvest • Hold to upgrade', {
-            fontSize: '10px',
+        this.elements.mobileInstructions = this.scene.add.text(20, uiY + 180, 'Tap to build/harvest • Hold to upgrade • Pinch to zoom • 2-finger drag to pan', {
+            fontSize: '9px',
             fill: '#888888',
             fontFamily: 'Courier New'
         });
+    }
+
+    // Add all UI elements to the UI container so they stay fixed
+    const uiElements = Object.values(this.elements).filter(el => el); // Filter out null/undefined
+    if (this.scene.uiContainer) {
+        this.scene.uiContainer.add(uiElements);
     }
 
         return this.elements;

@@ -107,8 +107,8 @@ class MenuSystem {
         const menuX = plotSprite.base.x - 60;
         const menuY = plotSprite.base.y - 80;
         
-        // Menu background
-        const menuBg = scene.add.rectangle(menuX, menuY, 220, 160, 0x2c1810, 0.9);
+        // Menu background (made taller for demolition button)
+        const menuBg = scene.add.rectangle(menuX, menuY, 220, 190, 0x2c1810, 0.9);
         menuBg.setStrokeStyle(2, 0x8b4513);
         
         // Title
@@ -163,7 +163,15 @@ class MenuSystem {
             buttons.push(...multBtn);
             yOffset += 25;
         }
-        
+
+        // Demolition button
+        yOffset += 10; // Add some spacing
+        const demolitionBtn = this.createDemolitionButton(
+            scene, menuX, menuY + yOffset, plotIndex
+        );
+        buttons.push(...demolitionBtn);
+        yOffset += 25;
+
         // Close button
         const closeBtn = this.createMenuButton(
             scene, menuX, menuY + yOffset,
@@ -264,6 +272,210 @@ class MenuSystem {
         }
         
         return [bg, label];
+    }
+
+    static createDemolitionButton(scene, x, y, plotIndex) {
+        const plot = gameState.plots[plotIndex];
+        const buildingDef = buildingTypes[plot.building];
+
+        // Calculate demolition info
+        const recovery = scene.demolitionSystem.calculateResourceRecovery(buildingDef);
+        const populationCost = scene.demolitionSystem.calculatePopulationCost(buildingDef);
+        const canAfford = gameState.resources.population >= populationCost;
+
+        // Create button with red styling for demolition
+        const bg = scene.add.rectangle(x, y, 180, 20, canAfford ? 0x8B0000 : 0x444444);
+        bg.setStrokeStyle(1, canAfford ? 0xFF0000 : 0x666666);
+        bg.setInteractive();
+
+        const label = scene.add.text(x, y, `Demolish (${populationCost}p)`, {
+            fontSize: '12px',
+            fill: canAfford ? '#FFB6C1' : '#666666',
+            fontFamily: 'Courier New'
+        }).setOrigin(0.5);
+
+        if (canAfford) {
+            bg.on('pointerup', (pointer, localX, localY, event) => {
+                if (pointer.getDistance() < 10) {
+                    // Hide upgrade menu and show demolition confirmation
+                    this.hideUpgradeMenu(scene);
+                    this.showDemolitionConfirmation(scene, plotIndex);
+                }
+            });
+
+            // Visual feedback
+            bg.on('pointerdown', () => bg.setFillStyle(0xFF0000));
+            bg.on('pointerup', () => bg.setFillStyle(0x8B0000));
+            bg.on('pointerout', () => bg.setFillStyle(0x8B0000));
+            bg.on('pointerover', () => {
+                if (!pointer || !pointer.isDown) {
+                    bg.setFillStyle(0xFF0000);
+                }
+            });
+        }
+
+        return [bg, label];
+    }
+
+    static showDemolitionConfirmation(scene, plotIndex) {
+        const plot = gameState.plots[plotIndex];
+        const buildingDef = buildingTypes[plot.building];
+
+        // Calculate recovery resources
+        const recovery = scene.demolitionSystem.calculateResourceRecovery(buildingDef);
+        const populationCost = scene.demolitionSystem.calculatePopulationCost(buildingDef);
+
+        const centerX = scene.cameras.main.width / 2;
+        const centerY = scene.cameras.main.height / 2;
+
+        // Create modal container
+        scene.demolitionConfirmModal = scene.add.container(centerX, centerY);
+
+        // Modal background
+        const modalBg = scene.add.rectangle(0, 0, 350, 280, 0x2c1810, 0.95);
+        modalBg.setStrokeStyle(3, 0x8b4513);
+
+        // Title
+        const title = scene.add.text(0, -110, `Demolish ${buildingDef.name}?`, {
+            fontSize: '18px',
+            fill: '#D4B896',
+            fontFamily: 'Courier New',
+            fontStyle: 'bold'
+        }).setOrigin(0.5);
+
+        // Recovery text
+        const recoveryText = scene.demolitionSystem.formatRecoveryText(recovery);
+        const recoveryDisplay = scene.add.text(0, -70, `Recover: ${recoveryText}`, {
+            fontSize: '14px',
+            fill: '#90EE90',
+            fontFamily: 'Courier New',
+            align: 'center'
+        }).setOrigin(0.5);
+
+        // Population cost text
+        const costText = scene.add.text(0, -40, `Required: ${populationCost} Population (consumed)`, {
+            fontSize: '14px',
+            fill: '#FFFF00',
+            fontFamily: 'Courier New',
+            align: 'center'
+        }).setOrigin(0.5);
+
+        // Instruction text
+        const instructionText = scene.add.text(0, -10, 'Hold "Confirm" button for 2 seconds to demolish', {
+            fontSize: '12px',
+            fill: '#CCCCCC',
+            fontFamily: 'Courier New',
+            align: 'center'
+        }).setOrigin(0.5);
+
+        // Long-press confirm button
+        const confirmBtn = this.createLongPressButton(
+            scene, -80, 40, 'Confirm\nDemolition', true,
+            () => {
+                // Execute demolition
+                scene.demolitionSystem.executeDemolition(plotIndex);
+                this.hideDemolitionConfirmation(scene);
+            }
+        );
+
+        // Cancel button
+        const cancelBtn = this.createMenuButton(
+            scene, 80, 40, 'Cancel', true,
+            () => this.hideDemolitionConfirmation(scene)
+        );
+
+        // Add all elements to modal
+        scene.demolitionConfirmModal.add([
+            modalBg, title, recoveryDisplay, costText, instructionText,
+            ...confirmBtn, ...cancelBtn
+        ]);
+
+        // Add to UI container
+        if (scene.uiContainer) {
+            scene.uiContainer.add(scene.demolitionConfirmModal);
+        }
+    }
+
+    static createLongPressButton(scene, x, y, text, enabled, callback) {
+        const bg = scene.add.rectangle(x, y, 120, 50, enabled ? 0x654321 : 0x444444);
+        bg.setStrokeStyle(2, enabled ? 0x8b4513 : 0x666666);
+        bg.setInteractive();
+
+        const label = scene.add.text(x, y, text, {
+            fontSize: '12px',
+            fill: enabled ? '#D4B896' : '#666666',
+            fontFamily: 'Courier New',
+            align: 'center'
+        }).setOrigin(0.5);
+
+        if (enabled) {
+            let longPressTimer = null;
+            let isLongPressing = false;
+            let progressIndicator = null;
+
+            bg.on('pointerdown', () => {
+                if (isLongPressing) return;
+
+                isLongPressing = true;
+                bg.setFillStyle(0x8b4513);
+
+                // Create progress indicator
+                progressIndicator = scene.add.circle(x, y, 30, 0xFF0000, 0.3);
+                scene.demolitionConfirmModal.add(progressIndicator);
+
+                // Animate progress indicator
+                scene.tweens.add({
+                    targets: progressIndicator,
+                    scaleX: 1.5,
+                    scaleY: 1.5,
+                    alpha: 0.7,
+                    duration: 2000,
+                    ease: 'Power2'
+                });
+
+                // Start long press timer (2 seconds)
+                longPressTimer = scene.time.delayedCall(2000, () => {
+                    if (isLongPressing) {
+                        callback();
+                    }
+                });
+            });
+
+            bg.on('pointerup', () => {
+                if (longPressTimer) {
+                    longPressTimer.remove();
+                    longPressTimer = null;
+                }
+                if (progressIndicator) {
+                    progressIndicator.destroy();
+                    progressIndicator = null;
+                }
+                isLongPressing = false;
+                bg.setFillStyle(0x654321);
+            });
+
+            bg.on('pointerout', () => {
+                if (longPressTimer) {
+                    longPressTimer.remove();
+                    longPressTimer = null;
+                }
+                if (progressIndicator) {
+                    progressIndicator.destroy();
+                    progressIndicator = null;
+                }
+                isLongPressing = false;
+                bg.setFillStyle(0x654321);
+            });
+        }
+
+        return [bg, label];
+    }
+
+    static hideDemolitionConfirmation(scene) {
+        if (scene.demolitionConfirmModal) {
+            scene.demolitionConfirmModal.destroy();
+            scene.demolitionConfirmModal = null;
+        }
     }
 
     static hideBuildMenu(scene) {

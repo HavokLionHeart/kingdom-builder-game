@@ -27,14 +27,16 @@ const gameState = {
                 harvestReady: false,
                 level: 1,
                 evolution: 0,
-                
+
                 // Upgrade properties
                 autoHarvest: false,
                 productionSpeed: 1.0,
                 harvestMultiplier: 1.0,
                 speedLevel: 0,
                 outputLevel: 0,
-                hasAutomation: false
+                hasAutomation: false,
+                placementTime: null, // Track when building was placed
+                adjacencyBonus: 0 // Track adjacency bonus
             });
         }
     }
