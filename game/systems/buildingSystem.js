@@ -88,23 +88,35 @@ class BuildingSystem {
     
     harvestBuilding(plotIndex) {
         const plot = gameState.plots[plotIndex];
-        if (!plot.building || !plot.harvestReady || plot.autoHarvest) return false;
-        
+        if (!plot.building || !plot.harvestReady) return false;
+
+        // Prevent manual harvesting of auto-harvest buildings
+        if (plot.autoHarvest) return false;
+
+        return this.performHarvest(plotIndex);
+    }
+
+    performHarvest(plotIndex) {
+        const plot = gameState.plots[plotIndex];
+        if (!plot.building || !plot.harvestReady) {
+            return false;
+        }
+
         const buildingDef = buildingTypes[plot.building];
-        
+
         // Apply starvation penalty to output
         const starvationMultiplier = gameState.isStarving ? 0.5 : 1;
-        
+
         // Add resources with multipliers
         Object.keys(buildingDef.produces).forEach(resource => {
             const baseAmount = buildingDef.produces[resource];
             const finalAmount = Math.floor(baseAmount * plot.harvestMultiplier * starvationMultiplier);
             gameState.resources[resource] += finalAmount;
         });
-        
+
         // Reset harvest timer
         this.resetHarvestTimer(plotIndex);
-        
+
         // Remove harvest indicator and progress bar if scene exists
         if (this.scene && this.scene.gridSprites) {
             const gridSprite = this.scene.gridSprites[plotIndex];
@@ -119,17 +131,17 @@ class BuildingSystem {
                 gridSprite.progressBg = null;
             }
         }
-        
+
         // Update UI if available
         if (this.scene && this.scene.uiInstance) {
             this.scene.uiInstance.updateUI();
         }
-        
+
         // Auto-save if SaveSystem exists
         if (typeof SaveSystem !== 'undefined' && SaveSystem.autoSave) {
             SaveSystem.autoSave();
         }
-        
+
         return true;
     }
     
@@ -137,14 +149,15 @@ class BuildingSystem {
         const currentTime = Date.now();
         
         gameState.plots.forEach((plot, index) => {
-            if (plot.building && plot.unlocked && !plot.harvestReady) {
-                if (currentTime >= plot.nextHarvest) {
+            if (plot.building && plot.unlocked) {
+                // Check if harvest is ready
+                if (!plot.harvestReady && currentTime >= plot.nextHarvest) {
                     plot.harvestReady = true;
-                    
-                    // Auto-harvest if enabled
-                    if (plot.autoHarvest) {
-                        this.harvestBuilding(index);
-                    }
+                }
+
+                // Auto-harvest if enabled and ready
+                if (plot.harvestReady && plot.autoHarvest) {
+                    this.performHarvest(index);
                 }
             }
             
@@ -165,13 +178,13 @@ class BuildingSystem {
             const timeRemaining = plot.nextHarvest - currentTime;
             
             if (timeRemaining <= 0 && plot.harvestReady) {
-                // Show harvest indicator
-                if (!gridSprite.harvestIndicator) {
+                // Show harvest indicator only for manual harvest buildings
+                if (!plot.autoHarvest && !gridSprite.harvestIndicator) {
                     gridSprite.harvestIndicator = this.scene.add.circle(
-                        gridSprite.base.x, 
-                        gridSprite.base.y, 
-                        35, 
-                        0xFFFF00, 
+                        gridSprite.base.x,
+                        gridSprite.base.y,
+                        35,
+                        0xFFFF00,
                         0.3
                     );
                 }
@@ -184,32 +197,51 @@ class BuildingSystem {
                     gridSprite.progressBg = null;
                 }
             } else if (timeRemaining > 0 && !plot.harvestReady) {
-                // Show progress bar
-                const progress = 1 - (timeRemaining / buildingDef.harvestTime);
-                
+                // Calculate effective harvest time with bonuses
+                const starvationMultiplier = gameState.isStarving ? 2 : 1;
+                let efficiencyBonus = 1.0;
+                if (this.scene && this.scene.demolitionSystem) {
+                    const totalBonus = this.scene.demolitionSystem.getTotalEfficiencyBonus(index);
+                    efficiencyBonus = 1.0 + totalBonus;
+                }
+                const effectiveHarvestTime = Math.floor(buildingDef.harvestTime * starvationMultiplier / (plot.productionSpeed * efficiencyBonus));
+
+                // Calculate progress based on effective time
+                const progress = 1 - (timeRemaining / effectiveHarvestTime);
+
                 if (!gridSprite.progressBg) {
                     // Create progress bar background
                     gridSprite.progressBg = this.scene.add.rectangle(
-                        gridSprite.base.x, 
-                        gridSprite.base.y + 35, 
-                        50, 6, 
+                        gridSprite.base.x,
+                        gridSprite.base.y + 35,
+                        50, 6,
                         0x333333
                     );
                     gridSprite.progressBg.setStrokeStyle(1, 0x000000);
+
+                    // Add to world container
+                    if (this.scene.worldContainer) {
+                        this.scene.worldContainer.add(gridSprite.progressBg);
+                    }
                 }
-                
+
                 if (gridSprite.progressBar) {
                     gridSprite.progressBar.destroy();
                 }
-                
+
                 // Create progress bar fill
                 const barWidth = Math.max(2, 48 * progress);
                 gridSprite.progressBar = this.scene.add.rectangle(
-                    gridSprite.base.x - 24 + barWidth/2, 
-                    gridSprite.base.y + 35, 
-                    barWidth, 4, 
+                    gridSprite.base.x - 24 + barWidth/2,
+                    gridSprite.base.y + 35,
+                    barWidth, 4,
                     0x00FF00
                 );
+
+                // Add to world container
+                if (this.scene.worldContainer) {
+                    this.scene.worldContainer.add(gridSprite.progressBar);
+                }
             }
         }
     }
@@ -217,15 +249,23 @@ class BuildingSystem {
     getBuildingProgress(plotIndex) {
         const plot = gameState.plots[plotIndex];
         if (!plot.building || plot.harvestReady) return 1;
-        
+
         const buildingDef = buildingTypes[plot.building];
         const currentTime = Date.now();
         const timeRemaining = plot.nextHarvest - currentTime;
-        
+
         if (timeRemaining <= 0) return 1;
-        
-        const totalTime = buildingDef.harvestTime / plot.productionSpeed;
-        return Math.max(0, 1 - (timeRemaining / totalTime));
+
+        // Calculate effective harvest time with all bonuses
+        const starvationMultiplier = gameState.isStarving ? 2 : 1;
+        let efficiencyBonus = 1.0;
+        if (this.scene && this.scene.demolitionSystem) {
+            const totalBonus = this.scene.demolitionSystem.getTotalEfficiencyBonus(plotIndex);
+            efficiencyBonus = 1.0 + totalBonus;
+        }
+        const effectiveHarvestTime = Math.floor(buildingDef.harvestTime * starvationMultiplier / (plot.productionSpeed * efficiencyBonus));
+
+        return Math.max(0, 1 - (timeRemaining / effectiveHarvestTime));
     }
     
     getAvailableBuildings(plotIndex) {

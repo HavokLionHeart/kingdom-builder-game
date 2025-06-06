@@ -232,29 +232,36 @@ class GameScene extends Phaser.Scene {
     handlePointerDown(pointer, plotIndex, event) {
         // Check for right-click on desktop
         if (event && event.button === 2) {
-            MenuSystem.showUpgradeMenu(this, plotIndex);
+            // Only show upgrade menu for buildings
+            const plot = gameState.plots[plotIndex];
+            if (plot.building && plot.unlocked) {
+                MenuSystem.showUpgradeMenu(this, plotIndex);
+            }
             return;
         }
 
         const plot = gameState.plots[plotIndex];
 
-        // For buildings, start touch hold timer for upgrade menu
-        if (plot.building && pointer.isDown && !this.isTouchHolding) {
+        // Start touch hold detection for all plots
+        if (pointer.isDown && !this.isTouchHolding) {
             this.isTouchHolding = true;
             this.currentTouchPlot = plotIndex;
 
-            // Add visual feedback for touch hold
-            this.showTouchHoldIndicator(plotIndex);
+            // For buildings, add visual feedback and start upgrade menu timer
+            if (plot.building && plot.unlocked) {
+                // Add visual feedback for touch hold
+                this.showTouchHoldIndicator(plotIndex);
 
-            // Start upgrade menu timer (0.5 seconds)
-            this.touchHoldTimer = this.time.delayedCall(this.touchHoldDuration, () => {
-                if (this.isTouchHolding && this.currentTouchPlot === plotIndex) {
-                    // Show upgrade menu on long press
-                    MenuSystem.showUpgradeMenu(this, plotIndex);
-                    this.isTouchHolding = false;
-                    this.hideTouchHoldIndicator();
-                }
-            });
+                // Start upgrade menu timer (0.5 seconds)
+                this.touchHoldTimer = this.time.delayedCall(this.touchHoldDuration, () => {
+                    if (this.isTouchHolding && this.currentTouchPlot === plotIndex) {
+                        // Show upgrade menu on long press
+                        MenuSystem.showUpgradeMenu(this, plotIndex);
+                        this.isTouchHolding = false;
+                        this.hideTouchHoldIndicator();
+                    }
+                });
+            }
         }
     }
 
@@ -270,7 +277,6 @@ class GameScene extends Phaser.Scene {
 
         // If it was a short tap (not a hold), handle normal click
         if (this.isTouchHolding && this.currentTouchPlot === plotIndex) {
-            this.isTouchHolding = false;
             this.handlePlotClick(plotIndex);
         }
 
@@ -430,8 +436,8 @@ class GameScene extends Phaser.Scene {
                 const timeRemaining = plot.nextHarvest - currentTime;
                 
                 if (timeRemaining <= 0 && plot.harvestReady) {
-                    // Show harvest indicator
-                    if (!gridSprite.harvestIndicator) {
+                    // Show harvest indicator only for manual harvest buildings
+                    if (!plot.autoHarvest && !gridSprite.harvestIndicator) {
                         gridSprite.harvestIndicator = this.add.circle(
                             gridSprite.base.x,
                             gridSprite.base.y,
@@ -450,8 +456,17 @@ class GameScene extends Phaser.Scene {
                         gridSprite.progressBg = null;
                     }
                 } else if (timeRemaining > 0 && !plot.harvestReady) {
-                    // Show progress bar
-                    const progress = 1 - (timeRemaining / buildingDef.harvestTime);
+                    // Calculate effective harvest time with bonuses
+                    const starvationMultiplier = gameState.isStarving ? 2 : 1;
+                    let efficiencyBonus = 1.0;
+                    if (this.demolitionSystem) {
+                        const totalBonus = this.demolitionSystem.getTotalEfficiencyBonus(index);
+                        efficiencyBonus = 1.0 + totalBonus;
+                    }
+                    const effectiveHarvestTime = Math.floor(buildingDef.harvestTime * starvationMultiplier / (plot.productionSpeed * efficiencyBonus));
+
+                    // Calculate progress based on effective time
+                    const progress = 1 - (timeRemaining / effectiveHarvestTime);
                     
                     if (!gridSprite.progressBg) {
                         // Create progress bar background

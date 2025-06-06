@@ -263,7 +263,7 @@ class MenuSystem {
             bg.on('pointerdown', () => bg.setFillStyle(0x8b4513));
             bg.on('pointerup', () => bg.setFillStyle(0x654321));
             bg.on('pointerout', () => bg.setFillStyle(0x654321));
-            bg.on('pointerover', () => {
+            bg.on('pointerover', (pointer) => {
                 // Only show hover on non-touch devices
                 if (!pointer || !pointer.isDown) {
                     bg.setFillStyle(0x8b4513);
@@ -307,7 +307,7 @@ class MenuSystem {
             bg.on('pointerdown', () => bg.setFillStyle(0xFF0000));
             bg.on('pointerup', () => bg.setFillStyle(0x8B0000));
             bg.on('pointerout', () => bg.setFillStyle(0x8B0000));
-            bg.on('pointerover', () => {
+            bg.on('pointerover', (pointer) => {
                 if (!pointer || !pointer.isDown) {
                     bg.setFillStyle(0xFF0000);
                 }
