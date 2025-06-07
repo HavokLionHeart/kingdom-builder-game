@@ -29,6 +29,8 @@ class GameScene extends Phaser.Scene {
         this.saveSystem = new SaveSystem(this);
         this.eventSystem = new EventSystem(this);
         this.demolitionSystem = new DemolitionSystem(this);
+        this.settingsSystem = new SettingsSystem(this);
+        this.upgradeMenu = new UpgradeMenu(this);
 
         // Load save data
         this.saveSystem.loadGame();
@@ -43,8 +45,9 @@ class GameScene extends Phaser.Scene {
         this.worldContainer = this.add.container(0, 0);
         this.uiContainer = this.add.container(0, 0);
 
-        // Set UI container to ignore camera transforms
+        // Set UI container to ignore camera transforms and have high depth
         this.uiContainer.setScrollFactor(0);
+        this.uiContainer.setDepth(100); // UI elements above world elements
 
         this.createGrid();
 
@@ -186,20 +189,36 @@ class GameScene extends Phaser.Scene {
 
         // Click handler with mobile support
         base.on('pointerdown', (pointer, localX, localY, event) => {
+            // Stop event propagation to prevent camera controls
+            event.stopPropagation();
             this.handlePointerDown(pointer, plotIndex, event);
         });
 
-        base.on('pointerup', (pointer) => {
+        base.on('pointerup', (pointer, localX, localY, event) => {
+            // Stop event propagation to prevent camera controls
+            if (event) event.stopPropagation();
             this.handlePointerUp(pointer, plotIndex);
+        });
+
+        // Right-click handler for upgrade menu
+        base.on('pointerdown', (pointer, localX, localY, event) => {
+            if (pointer.rightButtonDown()) {
+                event.stopPropagation();
+                this.handleRightClick(plotIndex);
+            }
         });
         
         if (buildingSprite) {
             buildingSprite.setInteractive();
             buildingSprite.on('pointerdown', (pointer, localX, localY, event) => {
+                // Stop event propagation to prevent camera controls
+                event.stopPropagation();
                 this.handlePointerDown(pointer, plotIndex, event);
             });
 
-            buildingSprite.on('pointerup', (pointer) => {
+            buildingSprite.on('pointerup', (pointer, localX, localY, event) => {
+                // Stop event propagation to prevent camera controls
+                if (event) event.stopPropagation();
                 this.handlePointerUp(pointer, plotIndex);
             });
         }
@@ -235,7 +254,7 @@ class GameScene extends Phaser.Scene {
             // Only show upgrade menu for buildings
             const plot = gameState.plots[plotIndex];
             if (plot.building && plot.unlocked) {
-                MenuSystem.showUpgradeMenu(this, plotIndex);
+                this.upgradeMenu.openMenu(plotIndex);
             }
             return;
         }
@@ -256,7 +275,7 @@ class GameScene extends Phaser.Scene {
                 this.touchHoldTimer = this.time.delayedCall(this.touchHoldDuration, () => {
                     if (this.isTouchHolding && this.currentTouchPlot === plotIndex) {
                         // Show upgrade menu on long press
-                        MenuSystem.showUpgradeMenu(this, plotIndex);
+                        this.upgradeMenu.openMenu(plotIndex);
                         this.isTouchHolding = false;
                         this.hideTouchHoldIndicator();
                     }
@@ -343,20 +362,25 @@ class GameScene extends Phaser.Scene {
             
             // Add click handler to building sprite
             gridSprite.building.on('pointerdown', (pointer, localX, localY, event) => {
+                // Stop event propagation to prevent camera controls
+                event.stopPropagation();
                 this.handlePointerDown(pointer, plotIndex, event);
             });
 
-            gridSprite.building.on('pointerup', (pointer) => {
+            gridSprite.building.on('pointerup', (pointer, localX, localY, event) => {
+                // Stop event propagation to prevent camera controls
+                if (event) event.stopPropagation();
                 this.handlePointerUp(pointer, plotIndex);
             });
             
             // Create upgrade indicators array
             gridSprite.upgradeIndicators = [];
             
-            // Add upgrade indicators
+            // Add upgrade indicators with proper depth
             if (plot.autoHarvest) {
                 const autoIcon = this.add.circle(x + 15, y - 15, 4, 0x00FF00);
                 autoIcon.setStrokeStyle(1, 0x000000);
+                autoIcon.setDepth(10); // Set depth below UI elements
                 gridSprite.upgradeIndicators.push(autoIcon);
                 this.worldContainer.add(autoIcon);
             }
@@ -364,6 +388,7 @@ class GameScene extends Phaser.Scene {
             if (plot.productionSpeed > 1.0) {
                 const speedIcon = this.add.circle(x - 15, y - 15, 4, 0x0080FF);
                 speedIcon.setStrokeStyle(1, 0x000000);
+                speedIcon.setDepth(10); // Set depth below UI elements
                 gridSprite.upgradeIndicators.push(speedIcon);
                 this.worldContainer.add(speedIcon);
             }
@@ -371,6 +396,7 @@ class GameScene extends Phaser.Scene {
             if (plot.harvestMultiplier > 1.0) {
                 const multIcon = this.add.circle(x + 15, y + 15, 4, 0xFF8000);
                 multIcon.setStrokeStyle(1, 0x000000);
+                multIcon.setDepth(10); // Set depth below UI elements
                 gridSprite.upgradeIndicators.push(multIcon);
                 this.worldContainer.add(multIcon);
             }
@@ -384,9 +410,68 @@ class GameScene extends Phaser.Scene {
                     backgroundColor: '#000000',
                     padding: { x: 2, y: 1 }
                 }).setOrigin(0.5);
+                levelText.setDepth(10); // Set depth below UI elements
                 gridSprite.upgradeIndicators.push(levelText);
                 this.worldContainer.add(levelText);
             }
+        }
+    }
+
+    updateUpgradeIndicators(plotIndex) {
+        const plot = gameState.plots[plotIndex];
+        const gridSprite = this.gridSprites[plotIndex];
+
+        if (!plot.building || !gridSprite) return;
+
+        // Clean up existing upgrade indicators
+        if (gridSprite.upgradeIndicators) {
+            gridSprite.upgradeIndicators.forEach(indicator => indicator.destroy());
+            gridSprite.upgradeIndicators = [];
+        }
+
+        const x = gridSprite.base.x;
+        const y = gridSprite.base.y;
+
+        // Create upgrade indicators array
+        gridSprite.upgradeIndicators = [];
+
+        // Add upgrade indicators with proper depth
+        if (plot.autoHarvest) {
+            const autoIcon = this.add.circle(x + 15, y - 15, 4, 0x00FF00);
+            autoIcon.setStrokeStyle(1, 0x000000);
+            autoIcon.setDepth(10); // Set depth below UI elements
+            gridSprite.upgradeIndicators.push(autoIcon);
+            this.worldContainer.add(autoIcon);
+        }
+
+        if (plot.productionSpeed > 1.0) {
+            const speedIcon = this.add.circle(x - 15, y - 15, 4, 0x0080FF);
+            speedIcon.setStrokeStyle(1, 0x000000);
+            speedIcon.setDepth(10); // Set depth below UI elements
+            gridSprite.upgradeIndicators.push(speedIcon);
+            this.worldContainer.add(speedIcon);
+        }
+
+        if (plot.harvestMultiplier > 1.0) {
+            const multIcon = this.add.circle(x + 15, y + 15, 4, 0xFF8000);
+            multIcon.setStrokeStyle(1, 0x000000);
+            multIcon.setDepth(10); // Set depth below UI elements
+            gridSprite.upgradeIndicators.push(multIcon);
+            this.worldContainer.add(multIcon);
+        }
+
+        // Add building level indicator if above level 1
+        if (plot.level > 1) {
+            const levelText = this.add.text(x - 15, y + 15, plot.level.toString(), {
+                fontSize: '10px',
+                fill: '#ffffff',
+                fontFamily: 'Courier New',
+                backgroundColor: '#000000',
+                padding: { x: 2, y: 1 }
+            }).setOrigin(0.5);
+            levelText.setDepth(10); // Set depth below UI elements
+            gridSprite.upgradeIndicators.push(levelText);
+            this.worldContainer.add(levelText);
         }
     }
 

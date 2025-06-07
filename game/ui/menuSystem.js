@@ -110,7 +110,8 @@ class MenuSystem {
         // Menu background (made taller for demolition button)
         const menuBg = scene.add.rectangle(menuX, menuY, 220, 190, 0x2c1810, 0.9);
         menuBg.setStrokeStyle(2, 0x8b4513);
-        
+        menuBg.setDepth(1000); // High depth to appear above everything
+
         // Title
         const title = scene.add.text(menuX, menuY - 65, 'Upgrades (Population):', {
             fontSize: '12px',
@@ -118,6 +119,7 @@ class MenuSystem {
             fontFamily: 'Courier New',
             align: 'center'
         }).setOrigin(0.5);
+        title.setDepth(1001); // Higher than background
         
         let yOffset = -40;
         const buttons = [];
@@ -202,7 +204,8 @@ class MenuSystem {
         // Menu background
         const menuBg = scene.add.rectangle(menuX, menuY, 200, 80, 0x2c1810, 0.9);
         menuBg.setStrokeStyle(2, 0x8b4513);
-        
+        menuBg.setDepth(1000); // High depth for menu
+
         // Title
         const title = scene.add.text(menuX, menuY - 25, 'Locked Plot', {
             fontSize: '14px',
@@ -210,6 +213,7 @@ class MenuSystem {
             fontFamily: 'Courier New',
             align: 'center'
         }).setOrigin(0.5);
+        title.setDepth(1001); // Higher than background
         
         const buttons = [];
         
@@ -243,12 +247,14 @@ class MenuSystem {
         const bg = scene.add.rectangle(x, y, 180, 20, enabled ? 0x654321 : 0x444444);
         bg.setStrokeStyle(1, enabled ? 0x8b4513 : 0x666666);
         bg.setInteractive();
-        
+        bg.setDepth(1001); // High depth for menu buttons
+
         const label = scene.add.text(x, y, text, {
             fontSize: '12px',
             fill: enabled ? '#D4B896' : '#666666',
             fontFamily: 'Courier New'
         }).setOrigin(0.5);
+        label.setDepth(1002); // Higher than button background
         
         if (enabled) {
             // Use pointerup for better mobile responsiveness
@@ -318,6 +324,13 @@ class MenuSystem {
     }
 
     static showDemolitionConfirmation(scene, plotIndex) {
+        // Check if confirmation dialogs are enabled
+        if (window.settingsSystem && !window.settingsSystem.shouldShowConfirmation()) {
+            // Skip confirmation and demolish directly
+            scene.demolitionSystem.executeDemolition(plotIndex);
+            return;
+        }
+
         const plot = gameState.plots[plotIndex];
         const buildingDef = buildingTypes[plot.building];
 
@@ -330,6 +343,7 @@ class MenuSystem {
 
         // Create modal container
         scene.demolitionConfirmModal = scene.add.container(centerX, centerY);
+        scene.demolitionConfirmModal.setDepth(2000); // Very high depth for modals
 
         // Modal background
         const modalBg = scene.add.rectangle(0, 0, 350, 280, 0x2c1810, 0.95);
@@ -574,10 +588,10 @@ class MenuSystem {
             scene.updateUI();
         }
         this.hideUpgradeMenu(scene);
-        
-        // Update plot visual if method exists
-        if (scene.updatePlotVisual) {
-            scene.updatePlotVisual(plotIndex);
+
+        // Update upgrade indicators to show new upgrades
+        if (scene.updateUpgradeIndicators) {
+            scene.updateUpgradeIndicators(plotIndex);
         }
     }
 }

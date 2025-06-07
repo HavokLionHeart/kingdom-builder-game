@@ -17,7 +17,15 @@ class UIElements {
             fill: gameState.isStarving ? '#FF6666' : '#90EE90',
             fontFamily: 'Courier New'
         });
-        
+
+        // Starvation warning - positioned next to food display
+        this.elements.starvationWarning = this.scene.add.text(200, uiY, '', {
+            fontSize: '16px',
+            fill: '#FF0000',
+            fontFamily: 'Courier New',
+            fontStyle: 'bold'
+        });
+
         this.elements.woodText = this.scene.add.text(20, uiY + 25, `Wood: ${gameState.resources.wood}`, {
             fontSize: '16px',
             fill: '#8B4513',
@@ -39,13 +47,6 @@ class UIElements {
         this.elements.popText = this.scene.add.text(20, uiY + 100, `Population: ${gameState.resources.population}`, {
             fontSize: '16px',
             fill: '#87CEEB',
-            fontFamily: 'Courier New'
-        });
-
-        // Starvation warning
-        this.elements.starvationWarning = this.scene.add.text(20, uiY + 125, '', {
-            fontSize: '14px',
-            fill: '#FF0000',
             fontFamily: 'Courier New'
         });
 

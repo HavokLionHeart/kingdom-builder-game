@@ -81,7 +81,7 @@ if (typeof config === 'undefined') {
                 console.log('Load error:', error);
             }
             
-            // Start auto-save timer (every 30 seconds)
+            // Start auto-save timer (settings system will handle interval)
             setInterval(() => {
                 try {
                     SaveSystem.autoSave();
@@ -89,7 +89,7 @@ if (typeof config === 'undefined') {
                 } catch (error) {
                     console.error('Auto-save failed:', error);
                 }
-            }, 30000);
+            }, 30000); // Default 30 seconds, settings system can override
             
             console.log('Save system initialized with auto-save every 30 seconds');
         } else {
